@@ -110,7 +110,29 @@ export function getHideShortsScript(): string {
               hideShortElements();
             }, 500);
           }
-        }, 1000);
+          
+          // ABSOLUTE NUKE: If URL ever becomes a shorts URL, redirect to home instantly
+          if (window.location.pathname.indexOf('/shorts') === 0) {
+             window.location.replace('/');
+          }
+        }, 100);
+
+        // Monkey-patch SPA navigations
+        var originalPushState = history.pushState;
+        history.pushState = function(state, title, url) {
+          if (typeof url === 'string' && url.indexOf('/shorts') > -1) {
+            arguments[2] = '/';
+          }
+          return originalPushState.apply(this, arguments);
+        };
+
+        var originalReplaceState = history.replaceState;
+        history.replaceState = function(state, title, url) {
+          if (typeof url === 'string' && url.indexOf('/shorts') > -1) {
+            arguments[2] = '/';
+          }
+          return originalReplaceState.apply(this, arguments);
+        };
 
       } catch(e) {
         // Complete failure — YouTube still works, just Shorts visible
