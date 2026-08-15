@@ -55,13 +55,28 @@ export function getHideShortsScript(): string {
                     el.style.setProperty('display', 'none', 'important');
                   }
                 });
-              } catch(e) {
-                // Selector not supported or element not found — skip
-              }
+              } catch(e) {}
             });
-          } catch(e) {
-            // Graceful degradation
-          }
+
+            // Aggressive Inner-Text scanning to kill the bottom nav tab and home chips
+            var allDivs = document.querySelectorAll('div, span, yt-formatted-string');
+            for (var i = 0; i < allDivs.length; i++) {
+              var el = allDivs[i];
+              if (el.textContent && el.textContent.trim() === 'Shorts') {
+                // If this is inside a pivot bar (bottom nav), kill the whole tab
+                var pivotItem = el.closest('ytm-pivot-bar-item-renderer, ytd-mini-guide-entry-renderer, ytd-guide-entry-renderer');
+                if (pivotItem) {
+                  pivotItem.style.setProperty('display', 'none', 'important');
+                }
+                
+                // If this is a chip cloud filter
+                var chipItem = el.closest('yt-chip-cloud-chip-renderer, ytm-chip-cloud-chip-renderer');
+                if (chipItem) {
+                  chipItem.style.setProperty('display', 'none', 'important');
+                }
+              }
+            }
+          } catch(e) {}
         }
 
         // Inject CSS immediately

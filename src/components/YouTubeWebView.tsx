@@ -88,14 +88,19 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
       [onNavigationStateChange]
     );
 
-    // External link handler + ad domain blocking
-    const handleShouldStartLoad = useCallback((request: ShouldStartLoadRequest): boolean => {
-      const { url: reqUrl } = request;
+      // External link handler + ad domain blocking
+      const handleShouldStartLoad = useCallback((request: ShouldStartLoadRequest): boolean => {
+        const { url: reqUrl } = request;
 
-      // Block ad-serving domains when content filter is enabled
-      if (contentFilter && shouldBlockRequest(reqUrl)) {
-        return false;
-      }
+        // Natively block any navigation to a Shorts video
+        if (hideShorts && reqUrl.includes('/shorts/')) {
+          return false;
+        }
+
+        // Block ad-serving domains when content filter is enabled
+        if (contentFilter && shouldBlockRequest(reqUrl)) {
+          return false;
+        }
 
       // Allow YouTube and Google auth URLs
       if (isYouTubeOrGoogleUrl(reqUrl)) {
