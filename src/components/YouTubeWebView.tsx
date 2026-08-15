@@ -139,8 +139,6 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
           onShouldStartLoadWithRequest={handleShouldStartLoad}
           // Injection
           injectedJavaScript={injectedScript}
-          // User Agent
-          userAgent={MOBILE_USER_AGENT}
           // Loading
           startInLoadingState={true}
           renderLoading={renderLoading}
@@ -166,7 +164,7 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
           javaScriptCanOpenWindowsAutomatically={false}
           setSupportMultipleWindows={false}
           mixedContentMode="compatibility"
-          originWhitelist={['https://*', 'http://*']}
+          originWhitelist={['*']}
         />
       </View>
     );

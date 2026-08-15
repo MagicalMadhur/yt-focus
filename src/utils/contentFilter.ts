@@ -190,19 +190,13 @@ export function getAdFilterScript(): string {
           return originalFetch.apply(this, arguments);
         };
 
-        // Monkey-patch XHR
-        var originalXHR = window.XMLHttpRequest;
-        window.XMLHttpRequest = function() {
-          var xhr = new originalXHR();
-          var originalOpen = xhr.open;
-          xhr.open = function(method, url) {
-            if (isAdUrl(url)) {
-              // Block the request by opening a dummy url or just not sending
-              return originalOpen.apply(this, [method, 'about:blank']);
-            }
-            return originalOpen.apply(this, arguments);
-          };
-          return xhr;
+        // Monkey-patch XHR safely
+        var originalOpen = window.XMLHttpRequest.prototype.open;
+        window.XMLHttpRequest.prototype.open = function(method, url) {
+          if (isAdUrl(url)) {
+            arguments[1] = 'about:blank';
+          }
+          return originalOpen.apply(this, arguments);
         };
 
         // ── Remove ad elements from DOM ────────────────────
