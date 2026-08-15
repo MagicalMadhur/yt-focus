@@ -27,7 +27,10 @@ export function getHideShortsScript(): string {
           'yt-tab-shape[tab-title="Shorts"]',
           'ytm-reel-shelf-renderer',
           'ytm-shorts-lockup-view-model',
-          'ytm-pivot-bar-item-renderer:has(.pivot-shorts)'
+          'ytm-pivot-bar-item-renderer:has(.pivot-shorts)',
+          'ytm-pivot-bar-item-renderer:nth-child(2)', // Mobile bottom nav shorts tab
+          'a[href^="/shorts"]', // Any link to a short
+          'a[href*="/shorts/"]'
         ];
 
         var SHORTS_STYLE_ID = '__ytfocus_hide_shorts_style';

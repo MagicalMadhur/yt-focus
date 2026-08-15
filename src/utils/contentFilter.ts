@@ -134,42 +134,76 @@ export function getAdFilterScript(): string {
         // ── Video ad skip logic ────────────────────────────
         function handleVideoAds() {
           try {
-            var player = document.querySelector('.html5-video-player');
-            if (!player) return;
-
-            var video = player.querySelector('video');
-            if (!video) return;
-
-            var isAdPlaying = player.classList.contains('ad-showing');
-            
-            if (isAdPlaying) {
-              // Try to click skip button
-              var skipButtons = [
-                '.ytp-ad-skip-button',
-                '.ytp-ad-skip-button-modern',
-                '.ytp-skip-ad-button',
-                'button.ytp-ad-skip-button-modern',
-                '.ytp-ad-skip-button-container button',
-              ];
-
-              for (var i = 0; i < skipButtons.length; i++) {
-                var skipBtn = player.querySelector(skipButtons[i]);
+            var videos = document.querySelectorAll('video');
+            for (var v = 0; v < videos.length; v++) {
+              var video = videos[v];
+              var player = video.closest('.html5-video-player') || video.closest('#player-control-overlay');
+              
+              var isAdPlaying = player && (player.classList.contains('ad-showing') || player.querySelector('.ytp-ad-module') || document.querySelector('ytm-promoted-video-renderer'));
+              
+              // Mobile specific check
+              var isMobileAd = document.querySelector('.ad-showing') || document.querySelector('ytm-promoted-video-renderer') || document.querySelector('.ytp-ad-player-overlay');
+              
+              if (isAdPlaying || isMobileAd) {
+                // Try to click skip button
+                var skipBtn = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, .ytp-ad-skip-button-container button');
                 if (skipBtn) {
                   skipBtn.click();
-                  return;
+                }
+
+                // Fast forward video
+                if (video.duration && isFinite(video.duration) && video.currentTime < video.duration - 1) {
+                  video.currentTime = video.duration - 0.1;
+                  video.playbackRate = 16;
+                  video.muted = true;
                 }
               }
-
-              // If no skip button yet, speed through the ad
-              if (video.duration && isFinite(video.duration)) {
-                video.currentTime = video.duration - 0.1;
-                video.playbackRate = 16;
-              }
             }
-          } catch(e) {
-            // Silently fail
-          }
+          } catch(e) {}
         }
+
+        // ── Network Interceptor (Fetch & XHR) ──────────────
+        var blockedPatterns = [
+          '/pagead/', '/ptracking?', '/api/stats/ads', 'adformat', '/youtubei/v1/player/ad_break',
+          'doubleclick.net', '/generate_204?ad', '/log_interaction?ad', 'googleadservices.com',
+          'googlesyndication.com'
+        ];
+
+        function isAdUrl(url) {
+          if (!url || typeof url !== 'string') return false;
+          url = url.toLowerCase();
+          for (var i = 0; i < blockedPatterns.length; i++) {
+            if (url.indexOf(blockedPatterns[i]) > -1) return true;
+          }
+          return false;
+        }
+
+        // Monkey-patch fetch
+        var originalFetch = window.fetch;
+        window.fetch = function() {
+          var url = arguments[0];
+          if (typeof url === 'string' && isAdUrl(url)) {
+            return Promise.reject(new Error('Ad blocked'));
+          } else if (url && url.url && isAdUrl(url.url)) {
+            return Promise.reject(new Error('Ad blocked'));
+          }
+          return originalFetch.apply(this, arguments);
+        };
+
+        // Monkey-patch XHR
+        var originalXHR = window.XMLHttpRequest;
+        window.XMLHttpRequest = function() {
+          var xhr = new originalXHR();
+          var originalOpen = xhr.open;
+          xhr.open = function(method, url) {
+            if (isAdUrl(url)) {
+              // Block the request by opening a dummy url or just not sending
+              return originalOpen.apply(this, [method, 'about:blank']);
+            }
+            return originalOpen.apply(this, arguments);
+          };
+          return xhr;
+        };
 
         // ── Remove ad elements from DOM ────────────────────
         function removeAdElements() {
