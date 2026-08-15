@@ -176,12 +176,61 @@ export function getEnhancementScript(): string {
   `;
 }
 
+// ─── Fullscreen Interceptor ────────────────────────────────────
+/**
+ * Returns JavaScript that intercepts video fullscreen events to trigger
+ * native device rotation.
+ */
+export function getFullscreenInterceptorScript(): string {
+  return `
+    (function() {
+      function sendFullscreen(isFullscreen) {
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'fullscreen',
+            isFullscreen: isFullscreen
+          }));
+        }
+      }
+
+      function attachVideoListeners() {
+        var videos = document.querySelectorAll('video');
+        for (var i = 0; i < videos.length; i++) {
+          if (!videos[i].__fs_attached) {
+            videos[i].__fs_attached = true;
+            
+            // iOS native video player fullscreen events
+            videos[i].addEventListener('webkitbeginfullscreen', function() {
+              sendFullscreen(true);
+            });
+            videos[i].addEventListener('webkitendfullscreen', function() {
+              sendFullscreen(false);
+            });
+          }
+        }
+      }
+      
+      // Run every second to catch new video elements
+      setInterval(attachVideoListeners, 1000);
+
+      // Also listen to standard DOM fullscreen events as fallback
+      document.addEventListener('fullscreenchange', function() {
+        sendFullscreen(!!document.fullscreenElement);
+      });
+      document.addEventListener('webkitfullscreenchange', function() {
+        sendFullscreen(!!document.webkitFullscreenElement);
+      });
+    })();
+    true;
+  `;
+}
+
 // ─── Combined Script Builder ────────────────────────────────────
 /**
  * Builds the complete injection script based on settings.
  */
 export function buildInjectionScript(hideShorts: boolean, contentFilter: boolean = false): string {
-  const scripts: string[] = [getEnhancementScript()];
+  const scripts: string[] = [getEnhancementScript(), getFullscreenInterceptorScript()];
   if (hideShorts) {
     scripts.push(getHideShortsScript());
   }

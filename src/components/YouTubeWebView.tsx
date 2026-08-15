@@ -3,6 +3,7 @@ import { StyleSheet, Platform, View } from 'react-native';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 import * as Linking from 'expo-linking';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { buildInjectionScript } from '../utils/webViewScripts';
 import { shouldBlockRequest } from '../utils/contentFilter';
 import { LoadingView } from './LoadingView';
@@ -117,6 +118,22 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
       return false;
     }, [contentFilter]);
 
+    // Handle messages from injected JavaScript
+    const handleMessage = useCallback((event: any) => {
+      try {
+        const data = JSON.parse(event.nativeEvent.data);
+        if (data.type === 'fullscreen') {
+          if (data.isFullscreen) {
+            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+          } else {
+            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+          }
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }, []);
+
     // Render loading
     const renderLoading = useCallback(() => {
       return <LoadingView isDark={theme.isDark} />;
@@ -142,6 +159,7 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
           allowsBackForwardNavigationGestures={true}
           onNavigationStateChange={handleNavigationStateChange}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
+          onMessage={handleMessage}
           // Injection
           injectedJavaScript={injectedScript}
           // Loading
