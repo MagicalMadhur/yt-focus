@@ -8,9 +8,10 @@ import { shouldBlockHotstarRequest, isHotstarAllowedUrl, getHotstarAdScript } fr
 import { LoadingView } from './LoadingView';
 import { useTheme } from '../theme/theme';
 
-// Mobile Chrome user agent — Hotstar serves the proper mobile web UI
-// but won't trigger the "download the app" prompt that iOS WebView UA causes
-const MOBILE_CHROME_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/126.0.6478.108 Mobile/15E148 Safari/604.1';
+// Desktop Chrome UA — Hotstar enables the full HTML5 web video player and does not
+// serve the "download mobile app" barrier that mobile browsers receive.
+// Combined with contentMode="mobile", the viewport renders at the native mobile width (not 1024px desktop canvas).
+const DESKTOP_CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
 // ─── Component Types ────────────────────────────────────────────
 export interface HotstarWebViewRef {
@@ -55,9 +56,21 @@ export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>
       [onNavigationStateChange]
     );
 
-    // Request filter + ad domain blocking
+    // Request filter + ad domain blocking + app store suppression
     const handleShouldStartLoad = useCallback((request: ShouldStartLoadRequest): boolean => {
       const { url: reqUrl } = request;
+
+      // Silently block app store and native app deep links
+      if (
+        reqUrl.includes('apps.apple.com') ||
+        reqUrl.includes('itunes.apple.com') ||
+        reqUrl.includes('play.google.com') ||
+        reqUrl.startsWith('itms-apps:') ||
+        reqUrl.startsWith('itms:') ||
+        reqUrl.startsWith('hotstar:')
+      ) {
+        return false;
+      }
 
       // Block ad-serving domains
       if (shouldBlockHotstarRequest(reqUrl)) {
@@ -125,7 +138,8 @@ export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>
           onNavigationStateChange={handleNavigationStateChange}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
           onMessage={handleMessage}
-          // Injection
+          // Injection: run BEFORE content loads and on load
+          injectedJavaScriptBeforeContentLoaded={injectedScript}
           injectedJavaScript={injectedScript}
           // Loading
           startInLoadingState={true}
@@ -142,11 +156,11 @@ export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>
           // Performance
           cacheEnabled={true}
           incognito={false}
-          // iOS specific
+          // iOS specific: mobile contentMode for responsive device-width scaling
           allowsLinkPreview={false}
           automaticallyAdjustContentInsets={false}
           contentMode="mobile"
-          userAgent={MOBILE_CHROME_UA}
+          userAgent={DESKTOP_CHROME_UA}
           // Misc
           pullToRefreshEnabled={true}
           javaScriptCanOpenWindowsAutomatically={false}

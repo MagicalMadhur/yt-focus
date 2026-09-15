@@ -64,6 +64,11 @@ const HOTSTAR_BLOCKED_PATTERNS: RegExp[] = [
   /\btracking\.js/i,
   /\/beacon\?/i,
   /\/collect\?/i,
+  /apps\.apple\.com/i,
+  /itunes\.apple\.com/i,
+  /play\.google\.com/i,
+  /\/download\b/i,
+  /hotstar:\/\/./i,
 ];
 
 /**
@@ -120,7 +125,6 @@ const HOTSTAR_ALLOWED_DOMAINS: string[] = [
   'googleapis.com',
   'google.com',
   'facebook.com',
-  'apple.com',
 ];
 
 export function isHotstarAllowedUrl(url: string): boolean {
@@ -140,6 +144,31 @@ export function getHotstarAdScript(): string {
     (function() {
       'use strict';
       try {
+        // ── Viewport & Desktop Spoofing ──────────────────
+        try {
+          var meta = document.querySelector('meta[name="viewport"]');
+          if (!meta) {
+            meta = document.createElement('meta');
+            meta.name = 'viewport';
+            (document.head || document.documentElement).appendChild(meta);
+          }
+          meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+
+          var appleMeta = document.querySelector('meta[name="apple-itunes-app"]');
+          if (appleMeta) appleMeta.remove();
+          var googleMeta = document.querySelector('meta[name="google-play-app"]');
+          if (googleMeta) googleMeta.remove();
+
+          Object.defineProperty(navigator, 'userAgent', {
+            get: function() { return 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'; },
+            configurable: true
+          });
+          Object.defineProperty(navigator, 'platform', {
+            get: function() { return 'MacIntel'; },
+            configurable: true
+          });
+        } catch(e) {}
+
         // ── CSS-based hiding ──────────────────────────────
         var HS_AD_STYLE_ID = '__zentube_hotstar_adfilter';
 
@@ -148,6 +177,12 @@ export function getHotstarAdScript(): string {
           var style = document.createElement('style');
           style.id = HS_AD_STYLE_ID;
           style.textContent = [
+            // ── Mobile Responsive Layout ──
+            'html, body { width: 100% !important; max-width: 100vw !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch !important; }',
+            '#app, #root, .app-container, main, [class*="main-container"], [class*="content-wrapper"], [class*="base-layout"] { width: 100% !important; max-width: 100vw !important; margin-left: 0 !important; box-sizing: border-box !important; }',
+            '[class*="tray"], [class*="tray-container"], [class*="rail"], [class*="carousel"], [class*="slider"] { max-width: 100vw !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }',
+            'video, .shaka-video-container, [class*="player-container"], [class*="video-player"], [class*="player-wrapper"] { width: 100% !important; max-width: 100vw !important; height: auto !important; }',
+
             // ── Generic ad containers ──
             '[class*="ad-container"] { display: none !important; }',
             '[class*="ad-banner"] { display: none !important; }',
@@ -238,6 +273,17 @@ export function getHotstarAdScript(): string {
             '[class*="installApp"] { display: none !important; }',
             '[class*="continue-in-app"] { display: none !important; }',
             '[class*="ContinueInApp"] { display: none !important; }',
+            '[class*="downloadPrompt"] { display: none !important; }',
+            '[class*="DownloadPrompt"] { display: none !important; }',
+            '[id*="download-prompt"] { display: none !important; }',
+            '[id*="downloadPrompt"] { display: none !important; }',
+            '[class*="switch-to-app"] { display: none !important; }',
+            '[class*="watch-on-app"] { display: none !important; }',
+            '[class*="mobile-app"] { display: none !important; }',
+            '[class*="MobileApp"] { display: none !important; }',
+            'a[href*="apps.apple.com"] { display: none !important; }',
+            'a[href*="itunes.apple.com"] { display: none !important; }',
+            'a[href*="play.google.com"] { display: none !important; }',
             '.tippy-popper { display: none !important; }',
             'meta[name="apple-itunes-app"] { display: none !important; }',
             'meta[name="google-play-app"] { display: none !important; }',
