@@ -46,13 +46,18 @@ jobs:
 
       - name: Package into IPA
         run: |
-          mkdir -p Payload
-          # Find the generated .app file and move it into the Payload folder
-          APP_PATH=$(find ios/build/Build/Products/Release-iphoneos -name "*.app" | head -n 1)
-          mv "$APP_PATH" Payload/
+          # Use a clean temp directory to avoid any stale Payload folders in the repo
+          PACK_DIR=$(mktemp -d)
+          mkdir -p "$PACK_DIR/Payload"
           
-          # Zip it up as an .ipa file
-          zip -r YTFocus.ipa Payload
+          # Find the generated .app file and copy it into the clean Payload folder
+          APP_PATH=$(find ios/build/Build/Products/Release-iphoneos -name "*.app" | head -n 1)
+          echo "Packaging app: $APP_PATH"
+          cp -r "$APP_PATH" "$PACK_DIR/Payload/"
+          
+          # Zip from inside the clean directory so only one .app is included
+          cd "$PACK_DIR"
+          zip -r "$GITHUB_WORKSPACE/YTFocus.ipa" Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
