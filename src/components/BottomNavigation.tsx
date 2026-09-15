@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeScreen } from '../screens/HomeScreen';
 import { SubscriptionsScreen } from '../screens/SubscriptionsScreen';
 import { LibraryScreen } from '../screens/LibraryScreen';
+import { HotstarScreen } from '../screens/HotstarScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { useTheme, colors } from '../theme/theme';
 
@@ -43,6 +44,13 @@ const TABS: TabConfig[] = [
     icon: 'folder-outline',
     iconFocused: 'folder',
     label: 'Library',
+  },
+  {
+    name: 'Hotstar',
+    component: HotstarScreen,
+    icon: 'film-outline',
+    iconFocused: 'film',
+    label: 'Hotstar',
   },
   {
     name: 'Settings',
