@@ -193,27 +193,9 @@ export function getHotstarAdScript(): string {
           style.textContent = [
             // ── Mobile Responsive Layout ──
             'html, body { width: 100% !important; max-width: 100vw !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch !important; }',
-            // Hide the desktop left vertical navigation sidebar completely
-            'nav, aside, [class*="sidebar"], [class*="Sidebar"], [class*="sideNav"], [class*="side-nav"], [class*="SideNav"], [class*="navigationRail"], [class*="navigation-rail"], [class*="left-nav"], [class*="leftNav"], [class*="LeftNav"], [data-testid*="sidebar"], [data-testid*="navigation"] { display: none !important; width: 0 !important; max-width: 0 !important; min-width: 0 !important; visibility: hidden !important; pointer-events: none !important; }',
-            // Expand all content containers to full width with no left margins
-            '#app, #root, #__next, .app-container, main, [role="main"], [class*="main-container"], [class*="mainContainer"], [class*="content-wrapper"], [class*="contentWrapper"], [class*="base-layout"], [class*="baseLayout"], [class*="page-container"], [class*="pageContainer"], [class*="home-container"], [class*="homeContainer"], div[class*="layout"] > div, div[class*="Layout"] > div { width: 100% !important; max-width: 100vw !important; margin-left: 0 !important; padding-left: 0 !important; padding-right: 0 !important; left: 0 !important; box-sizing: border-box !important; }',
-            // Prevent section titles from truncating with "..."
-            '[class*="tray-title"], [class*="trayTitle"], [class*="trayHeader"], [class*="tray-header"], h2, h3, [class*="heading"], [class*="title"], [class*="Title"] { max-width: 100vw !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; font-size: 17px !important; font-weight: 700 !important; padding-left: 12px !important; padding-right: 12px !important; margin-bottom: 6px !important; }',
-            // Horizontal scrolling rails with smooth touch
-            '[class*="tray"], [class*="tray-container"], [class*="trayContainer"], [class*="rail"], [class*="carousel"], [class*="slider"] { display: flex !important; flex-direction: row !important; max-width: 100vw !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; scroll-behavior: smooth !important; padding-left: 12px !important; padding-right: 12px !important; gap: 10px !important; }',
-            // Card sizing
-            '[class*="card"], [class*="Card"], [class*="tray-item"], [class*="trayItem"], [class*="poster"], [class*="Poster"], [class*="thumbnail"], [class*="Thumbnail"] { flex-shrink: 0 !important; }',
-            // Hero banner scaling
-            '[class*="hero"], [class*="Hero"], [class*="masthead"], [class*="banner-container"] { width: 100vw !important; max-width: 100vw !important; box-sizing: border-box !important; }',
-            // Video player
+            '#app, #root, .app-container, main, [class*="main-container"], [class*="content-wrapper"], [class*="base-layout"] { width: 100% !important; max-width: 100vw !important; margin-left: 0 !important; box-sizing: border-box !important; }',
+            '[class*="tray"], [class*="tray-container"], [class*="rail"], [class*="carousel"], [class*="slider"] { max-width: 100vw !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }',
             'video, .shaka-video-container, [class*="player-container"], [class*="video-player"], [class*="player-wrapper"] { width: 100% !important; max-width: 100vw !important; height: auto !important; }',
-            // Mobile Top Bar styling
-            '#__zentube_hotstar_topbar { position: sticky; top: 0; left: 0; width: 100vw; height: 46px; background: rgba(15, 16, 20, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex; flex-direction: row; align-items: center; justify-content: space-between; padding: 0 14px; box-sizing: border-box; z-index: 99999; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }',
-            '#__zentube_hotstar_topbar .logo-group { display: flex; align-items: center; gap: 6px; color: #fff; font-weight: 700; font-size: 16px; text-decoration: none; }',
-            '#__zentube_hotstar_topbar .categories { display: flex; align-items: center; gap: 16px; }',
-            '#__zentube_hotstar_topbar .categories a { color: rgba(255, 255, 255, 0.7); font-size: 13px; font-weight: 600; text-decoration: none; }',
-            '#__zentube_hotstar_topbar .categories a:active { color: #fff; }',
-            '#__zentube_hotstar_topbar .search-btn { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(255, 255, 255, 0.1); color: #fff; text-decoration: none; }',
 
             // ── Generic ad containers ──
             '[class*="ad-container"] { display: none !important; }',
@@ -337,33 +319,6 @@ export function getHotstarAdScript(): string {
             'iframe[id*="google_ads"] { display: none !important; }',
           ].join('\\\\n');
           (document.head || document.documentElement).appendChild(style);
-        }
-
-        // ── Mobile Top Navigation Bar ─────────────────────
-        function injectMobileTopBar() {
-          try {
-            if (document.getElementById('__zentube_hotstar_topbar')) return;
-            if (!document.body) return;
-
-            var topBar = document.createElement('div');
-            topBar.id = '__zentube_hotstar_topbar';
-            topBar.innerHTML = [
-              '<a href="/in/home" class="logo-group">',
-              '  <span style="color:#0084ff;font-size:18px;">★</span>',
-              '  <span>Hotstar</span>',
-              '</a>',
-              '<div class="categories">',
-              '  <a href="/in/shows">TV</a>',
-              '  <a href="/in/movies">Movies</a>',
-              '  <a href="/in/sports">Sports</a>',
-              '</div>',
-              '<a href="/in/explore" class="search-btn" title="Search">',
-              '  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>',
-              '</a>'
-            ].join('');
-
-            document.body.insertBefore(topBar, document.body.firstChild);
-          } catch(e) {}
         }
 
         // ── Remove download app banners from DOM ──────────
@@ -510,15 +465,12 @@ export function getHotstarAdScript(): string {
 
         // ── Main execution ────────────────────────────────
         injectHotstarCSS();
-        injectMobileTopBar();
         removeAppBanners();
         handleVideoAds();
         attachVideoListeners();
 
-        // Periodic cleanup
+        // Periodic cleanup (fast for ads, slower for banners)
         setInterval(function() {
-          injectHotstarCSS();
-          injectMobileTopBar();
           handleVideoAds();
           attachVideoListeners();
         }, 300);
@@ -533,7 +485,6 @@ export function getHotstarAdScript(): string {
             if (debounceTimer) clearTimeout(debounceTimer);
             debounceTimer = setTimeout(function() {
               injectHotstarCSS();
-              injectMobileTopBar();
               removeAppBanners();
               handleVideoAds();
             }, 150);
