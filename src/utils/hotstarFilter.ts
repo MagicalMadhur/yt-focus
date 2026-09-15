@@ -191,11 +191,7 @@ export function getHotstarAdScript(): string {
           var style = document.createElement('style');
           style.id = HS_AD_STYLE_ID;
           style.textContent = [
-            // ── Mobile Responsive Layout ──
-            'html, body { width: 100% !important; max-width: 100vw !important; overflow-x: hidden !important; -webkit-overflow-scrolling: touch !important; }',
-            '#app, #root, .app-container, main, [class*="main-container"], [class*="content-wrapper"], [class*="base-layout"] { width: 100% !important; max-width: 100vw !important; margin-left: 0 !important; box-sizing: border-box !important; }',
-            '[class*="tray"], [class*="tray-container"], [class*="rail"], [class*="carousel"], [class*="slider"] { max-width: 100vw !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }',
-            'video, .shaka-video-container, [class*="player-container"], [class*="video-player"], [class*="player-wrapper"] { width: 100% !important; max-width: 100vw !important; height: auto !important; }',
+            // ── Native Desktop Layout (Removed Aggressive Overrides) ──
 
             // ── Generic ad containers ──
             '[class*="ad-container"] { display: none !important; }',

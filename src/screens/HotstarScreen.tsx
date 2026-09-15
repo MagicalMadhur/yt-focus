@@ -83,11 +83,11 @@ export function HotstarScreen() {
 
       {/* Floating ZenTube button to easily switch back to YouTube */}
       <TouchableOpacity
-        style={[styles.floatingBackBtn, { top: 10, right: Math.max(insets.right, 16) }]}
+        style={[styles.floatingBackBtn, { top: Math.max(insets.top, 16), left: '50%', transform: [{ translateX: -40 }] }]}
         onPress={() => (navigation as any).navigate('Home')}
         activeOpacity={0.7}
       >
-        <Ionicons name="arrow-back" size={13} color="#fff" />
+        <Ionicons name="arrow-back" size={12} color="#fff" />
         <Text style={styles.floatingBackText}>ZenTube</Text>
       </TouchableOpacity>
     </View>
@@ -103,17 +103,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(20, 20, 20, 0.82)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: 'rgba(20, 20, 20, 0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     zIndex: 9999,
   },
   floatingBackText: {
     color: '#fff',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
   },
 });
