@@ -8,10 +8,9 @@ import { shouldBlockHotstarRequest, isHotstarAllowedUrl, getHotstarAdScript } fr
 import { LoadingView } from './LoadingView';
 import { useTheme } from '../theme/theme';
 
-// Desktop Chrome UA — Hotstar enables the full HTML5 web video player and does not
-// serve the "download mobile app" barrier that mobile browsers receive.
-// Combined with contentMode="mobile", the viewport renders at the native mobile width (not 1024px desktop canvas).
-const DESKTOP_CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+// Desktop Safari UA — Hotstar enables native HLS/FairPlay web video playback compatible
+// with iOS WKWebView and does not show the mobile app download banner.
+const DESKTOP_SAFARI_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15';
 
 // ─── Component Types ────────────────────────────────────────────
 export interface HotstarWebViewRef {
@@ -153,7 +152,7 @@ export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>
           allowsLinkPreview={false}
           automaticallyAdjustContentInsets={false}
           contentMode="mobile"
-          userAgent={DESKTOP_CHROME_UA}
+          userAgent={DESKTOP_SAFARI_UA}
           // Misc
           pullToRefreshEnabled={true}
           javaScriptCanOpenWindowsAutomatically={false}

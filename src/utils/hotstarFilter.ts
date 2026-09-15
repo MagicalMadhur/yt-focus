@@ -174,7 +174,7 @@ export function getHotstarAdScript(): string {
           if (googleMeta) googleMeta.remove();
 
           Object.defineProperty(navigator, 'userAgent', {
-            get: function() { return 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'; },
+            get: function() { return 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15'; },
             configurable: true
           });
           Object.defineProperty(navigator, 'platform', {
@@ -239,29 +239,8 @@ export function getHotstarAdScript(): string {
 
             // ── IMA SDK (Google Interactive Media Ads) ──
             '#ima-ad-container { display: none !important; }',
-            '[id*="ima-ad"] { display: none !important; }',
-            '[class*="ima-ad"] { display: none !important; }',
-            '.ima-ad-container { display: none !important; }',
             '#google_companion_ad_div { display: none !important; }',
-            '.videoAdUi { display: none !important; }',
             '.videoAdUiTopBar { display: none !important; }',
-            '[class*="ad-showing"] { display: none !important; }',
-            '[class*="adShowing"] { display: none !important; }',
-
-            // ── In-stream video ads ──
-            '[class*="preroll"] { display: none !important; }',
-            '[class*="Preroll"] { display: none !important; }',
-            '[class*="midroll"] { display: none !important; }',
-            '[class*="Midroll"] { display: none !important; }',
-            '[class*="postroll"] { display: none !important; }',
-            '[class*="Postroll"] { display: none !important; }',
-            '[class*="ad-break"] { display: none !important; }',
-            '[class*="adBreak"] { display: none !important; }',
-            '[class*="AdBreak"] { display: none !important; }',
-            '[class*="ad-playing"] { display: none !important; }',
-            '[class*="adPlaying"] { display: none !important; }',
-            '[class*="ad-countdown"] { display: none !important; }',
-            '[class*="adCountdown"] { display: none !important; }',
 
             // ── Download app / smart banners ──
             '[class*="app-download"] { display: none !important; }',
@@ -356,49 +335,7 @@ export function getHotstarAdScript(): string {
         // ── Video ad skip logic ───────────────────────────
         function handleVideoAds() {
           try {
-            // Skip ad videos by fast-forwarding
-            var videos = document.querySelectorAll('video');
-            for (var v = 0; v < videos.length; v++) {
-              var video = videos[v];
-
-              // Detect if this video is an ad
-              var parent = video.parentElement;
-              var isAd = false;
-              var depth = 0;
-              while (parent && depth < 10) {
-                var cls = (parent.className || '').toString().toLowerCase();
-                var id = (parent.id || '').toLowerCase();
-                if (cls.indexOf('ad') > -1 || id.indexOf('ad') > -1 ||
-                    cls.indexOf('ima') > -1 || id.indexOf('ima') > -1 ||
-                    cls.indexOf('preroll') > -1 || cls.indexOf('midroll') > -1) {
-                  isAd = true;
-                  break;
-                }
-                parent = parent.parentElement;
-                depth++;
-              }
-
-              if (isAd && video.duration && isFinite(video.duration) && video.duration < 120) {
-                video.currentTime = video.duration;
-                video.muted = true;
-                video.pause();
-                var adParent = video.closest('[class*="ad"], [id*="ima"]');
-                if (adParent) adParent.style.setProperty('display', 'none', 'important');
-              }
-            }
-
-            // Hide any visible ad overlays
-            var adOverlays = document.querySelectorAll(
-              '#ima-ad-container, [class*="ima-ad"], [class*="preroll"], [class*="midroll"], ' +
-              '[class*="ad-showing"], [class*="adPlaying"], [class*="ad-break"], [class*="adBreak"]'
-            );
-            for (var a = 0; a < adOverlays.length; a++) {
-              if (adOverlays[a].offsetHeight > 0) {
-                adOverlays[a].style.setProperty('display', 'none', 'important');
-              }
-            }
-
-            // Click any skip button
+            // Click any visible skip button immediately
             var skipSelectors = [
               '[class*="skip-ad"]', '[class*="skipAd"]', '[class*="SkipAd"]',
               '[class*="skip-button"]', '[class*="skipButton"]', '[class*="SkipButton"]',
@@ -409,6 +346,15 @@ export function getHotstarAdScript(): string {
             for (var s = 0; s < skipBtns.length; s++) {
               if (skipBtns[s].offsetHeight > 0) {
                 skipBtns[s].click();
+              }
+            }
+
+            // Only fast-forward videos that are strictly inside an IMA ad container
+            var adVideos = document.querySelectorAll('#ima-ad-container video, .ima-ad-container video, .videoAdUi video');
+            for (var v = 0; v < adVideos.length; v++) {
+              var adVid = adVideos[v];
+              if (adVid && adVid.duration && isFinite(adVid.duration) && adVid.duration < 120) {
+                adVid.currentTime = adVid.duration;
               }
             }
           } catch(e) {}
