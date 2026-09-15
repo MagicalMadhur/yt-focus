@@ -9,7 +9,7 @@ import { OfflineView } from '../components/OfflineView';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { useTheme } from '../theme/theme';
 
-const HOTSTAR_HOME = 'https://www.jiohotstar.com/';
+const HOTSTAR_HOME = 'https://www.hotstar.com/in';
 
 export function HotstarScreen() {
   const webViewRef = useRef<HotstarWebViewRef>(null);

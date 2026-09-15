@@ -79,6 +79,20 @@ export function shouldBlockHotstarRequest(url: string): boolean {
     const parsed = new URL(url);
     const hostname = parsed.hostname.toLowerCase();
 
+    // Never block Hotstar's own core domains (except go.hotstar.com ad domain)
+    const isHotstarCore =
+      (hostname === 'hotstar.com' ||
+        hostname.endsWith('.hotstar.com') ||
+        hostname === 'jiohotstar.com' ||
+        hostname.endsWith('.jiohotstar.com') ||
+        hostname.endsWith('.hotstarext.com')) &&
+      hostname !== 'go.hotstar.com';
+
+    if (isHotstarCore) {
+      // Only block if it is explicitly an app store redirect or /download landing page
+      return /\/download\b/i.test(parsed.pathname);
+    }
+
     for (const domain of HOTSTAR_BLOCKED_DOMAINS) {
       if (hostname === domain || hostname.endsWith('.' + domain)) {
         return true;
@@ -403,132 +417,6 @@ export function getHotstarAdScript(): string {
             }
           } catch(e) {}
         }
-
-        // ── Network interceptor (enhanced) ────────────────
-        var blockedPatterns = [
-          '/ads/', '/ads?', '/ad/', '/ad?', '/pagead/', 'doubleclick', 'adserver', 'adunit',
-          'vast.xml', 'vast2.xml', 'vast3.xml', 'vast4.xml', 'vastUrl', 'vpaid',
-          '/ptracking', 'googlesyndication', 'googleadservices', 'adservice.google',
-          'pubmatic.com', 'scorecardresearch', 'moatads', 'springserve', 'aniview',
-          '/beacon?', '/collect?', 'app-measurement', 'google-analytics', 'googletagmanager',
-          '/ad-manifest', '/admanifest', 'ad-insertion', 'dai.google', 'imasdk.googleapis',
-          '/midroll', '/preroll', '/postroll', 'ad_break', 'adbreak', 'adconfig',
-          'amazon-adsystem', 'media.net', 'criteo', 'outbrain', 'taboola',
-          'rubiconproject', 'openx.net', 'casalemedia', 'demdex', 'omtrdc',
-          'adsrvr.org', 'adnxs.com', 'turn.com', 'serving-sys', 'adobedtm',
-          'comscore', 'go.hotstar.com',
-          // Hotstar specific ad API patterns
-          '/v2/ad/', '/v1/ad/', '/ad/config', '/ad/track', '/ad/event',
-          'adtech', 'ad-sdk', 'adsdk',
-        ];
-
-        function isAdUrl(url) {
-          if (!url || typeof url !== 'string') return false;
-          var lower = url.toLowerCase();
-          for (var i = 0; i < blockedPatterns.length; i++) {
-            if (lower.indexOf(blockedPatterns[i]) > -1) return true;
-          }
-          return false;
-        }
-
-        // Monkey-patch fetch
-        var originalFetch = window.fetch;
-        window.fetch = function() {
-          var url = arguments[0];
-          if (typeof url === 'string' && isAdUrl(url)) {
-            return Promise.resolve(new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }));
-          } else if (url && url.url && isAdUrl(url.url)) {
-            return Promise.resolve(new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }));
-          }
-          // Intercept ad responses from hotstar's API
-          var result = originalFetch.apply(this, arguments);
-          if (typeof url === 'string' && (url.indexOf('hotstar.com') > -1 || url.indexOf('jiohotstar.com') > -1)) {
-            return result.then(function(response) {
-              // Clone to check content
-              var cloned = response.clone();
-              return cloned.text().then(function(body) {
-                if (body.indexOf('adManifest') > -1 || body.indexOf('adBreak') > -1 ||
-                    body.indexOf('vastUrl') > -1 || body.indexOf('adServer') > -1) {
-                  // Return response with ad fields stripped
-                  try {
-                    var json = JSON.parse(body);
-                    function stripAds(obj) {
-                      if (!obj || typeof obj !== 'object') return obj;
-                      if (Array.isArray(obj)) return obj.map(stripAds);
-                      var result = {};
-                      for (var key in obj) {
-                        var lk = key.toLowerCase();
-                        if (lk.indexOf('ad') === 0 || lk === 'ads' || lk === 'vasturl' ||
-                            lk === 'admanifest' || lk === 'adbreak' || lk === 'adconfig' ||
-                            lk === 'adserver' || lk === 'adinsertionmeta' || lk === 'adinfo') {
-                          // Skip ad-related keys
-                          continue;
-                        }
-                        result[key] = stripAds(obj[key]);
-                      }
-                      return result;
-                    }
-                    var cleaned = stripAds(json);
-                    return new Response(JSON.stringify(cleaned), {
-                      status: response.status,
-                      statusText: response.statusText,
-                      headers: response.headers,
-                    });
-                  } catch(e) {
-                    return response;
-                  }
-                }
-                return response;
-              }).catch(function() { return response; });
-            });
-          }
-          return result;
-        };
-
-        // Monkey-patch XHR
-        var originalOpen = window.XMLHttpRequest.prototype.open;
-        window.XMLHttpRequest.prototype.open = function(method, url) {
-          if (isAdUrl(url)) {
-            this.__blocked_ad = true;
-            arguments[1] = 'about:blank';
-          }
-          return originalOpen.apply(this, arguments);
-        };
-
-        var originalSend = window.XMLHttpRequest.prototype.send;
-        window.XMLHttpRequest.prototype.send = function() {
-          if (this.__blocked_ad) return;
-          return originalSend.apply(this, arguments);
-        };
-
-        // Block IMA SDK from loading
-        var origCreateElement = document.createElement.bind(document);
-        document.createElement = function(tag) {
-          var el = origCreateElement(tag);
-          if (tag.toLowerCase() === 'script') {
-            var origSetAttribute = el.setAttribute.bind(el);
-            el.setAttribute = function(name, value) {
-              if (name === 'src' && typeof value === 'string' && isAdUrl(value)) {
-                return; // silently block ad script loading
-              }
-              return origSetAttribute(name, value);
-            };
-            // Also intercept .src setter
-            var descriptor = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
-            if (descriptor && descriptor.set) {
-              Object.defineProperty(el, 'src', {
-                set: function(value) {
-                  if (typeof value === 'string' && isAdUrl(value)) return;
-                  descriptor.set.call(this, value);
-                },
-                get: function() {
-                  return descriptor.get ? descriptor.get.call(this) : '';
-                },
-              });
-            }
-          }
-          return el;
-        };
 
         // ── Fullscreen rotation support ───────────────────
         var isFullscreen = false;
