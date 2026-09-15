@@ -34,3 +34,9 @@ yarn-error.*
 
 # EAS
 .eas/
+
+# IPA & Payload builds
+Payload/
+*.ipa
+ios/build/
+build/
