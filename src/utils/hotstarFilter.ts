@@ -5,7 +5,8 @@
 
 // ─── Blocked Hotstar Ad Domains ─────────────────────────────────
 const HOTSTAR_BLOCKED_DOMAINS: string[] = [
-  // Ad servers
+  // Google IMA SDK & Ad servers
+  'imasdk.googleapis.com',
   'pubads.g.doubleclick.net',
   'securepubads.g.doubleclick.net',
   'googleads.g.doubleclick.net',
@@ -15,6 +16,7 @@ const HOTSTAR_BLOCKED_DOMAINS: string[] = [
   'googleadservices.com',
   'googlesyndication.com',
   'pagead2.googlesyndication.com',
+  'pagead2.google.com',
   'adservice.google.com',
   's0.2mdn.net',
   // Tracking
@@ -345,32 +347,91 @@ export function getHotstarAdScript(): string {
           } catch(e) {}
         }
 
-        // ── Video ad skip logic ───────────────────────────
+        // ── Aggressive Video Ad Skip Logic ────────────────
         function handleVideoAds() {
           try {
-            // Click any visible skip button immediately
+            // 1. Instantly click any skip button
             var skipSelectors = [
               '[class*="skip-ad"]', '[class*="skipAd"]', '[class*="SkipAd"]',
               '[class*="skip-button"]', '[class*="skipButton"]', '[class*="SkipButton"]',
               '[class*="ad-skip"]', '[class*="adSkip"]',
-              'button[class*="skip"]', '[aria-label*="Skip"]', '[aria-label*="skip"]',
+              'button[class*="skip"]', '[aria-label*="Skip" i]', '[aria-label*="skip" i]',
+              '[data-testid*="skip" i]', '.videoAdUiSkipButton',
+              '[class*="skipBtn"]', '[class*="skip_button"]'
             ];
             var skipBtns = document.querySelectorAll(skipSelectors.join(', '));
             for (var s = 0; s < skipBtns.length; s++) {
-              if (skipBtns[s].offsetHeight > 0) {
+              if (skipBtns[s].offsetHeight > 0 || skipBtns[s].offsetWidth > 0) {
                 skipBtns[s].click();
               }
             }
 
-            // Only fast-forward videos that are strictly inside an IMA ad container
-            var adVideos = document.querySelectorAll('#ima-ad-container video, .ima-ad-container video, .videoAdUi video');
-            for (var v = 0; v < adVideos.length; v++) {
-              var adVid = adVideos[v];
-              if (adVid && adVid.duration && isFinite(adVid.duration) && adVid.duration < 120) {
-                adVid.currentTime = adVid.duration;
+            // 2. Check if an ad overlay or countdown is active
+            var isAdActive = false;
+            var adBadges = document.querySelectorAll(
+              '#ima-ad-container, .ima-ad-container, .videoAdUi, [class*="ad-overlay"], [class*="ad-countdown"], [class*="adCountdown"], [class*="ad-timer"], [class*="ad_timer"], [class*="ad-badge"]'
+            );
+            for (var b = 0; b < adBadges.length; b++) {
+              if (adBadges[b].offsetHeight > 0 || adBadges[b].offsetWidth > 0) {
+                isAdActive = true;
+                break;
+              }
+            }
+
+            // 3. Fast-forward ad video
+            var videos = document.querySelectorAll('video');
+            for (var v = 0; v < videos.length; v++) {
+              var vid = videos[v];
+              var isInAdContainer = vid.closest('#ima-ad-container, .ima-ad-container, .videoAdUi, [class*="ad-container"]');
+
+              if (isInAdContainer || (videos.length > 1 && vid.duration && vid.duration < 180) || (isAdActive && vid.duration && isFinite(vid.duration) && vid.duration < 180)) {
+                vid.muted = true;
+                vid.playbackRate = 16;
+                if (vid.currentTime < vid.duration - 0.1) {
+                  vid.currentTime = vid.duration - 0.05;
+                }
               }
             }
           } catch(e) {}
+        }
+
+        // ── Ad Network Interceptor ────────────────────────
+        var blockedAdPatterns = [
+          'imasdk.googleapis.com', 'doubleclick.net', 'googleadservices.com',
+          'googlesyndication.com', 'pagead2.googlesyndication.com', 'pubads.g.doubleclick.net',
+          'securepubads.g.doubleclick.net', 'pubmatic.com', 'adsrvr.org', 'adnxs.com'
+        ];
+
+        function isBlockedAd(url) {
+          if (!url || typeof url !== 'string') return false;
+          var u = url.toLowerCase();
+          for (var i = 0; i < blockedAdPatterns.length; i++) {
+            if (u.indexOf(blockedAdPatterns[i]) > -1) return true;
+          }
+          return false;
+        }
+
+        var origFetch = window.fetch;
+        if (origFetch) {
+          window.fetch = function() {
+            var url = arguments[0];
+            if (typeof url === 'string' && isBlockedAd(url)) {
+              return Promise.reject(new Error('Ad blocked'));
+            } else if (url && url.url && isBlockedAd(url.url)) {
+              return Promise.reject(new Error('Ad blocked'));
+            }
+            return origFetch.apply(this, arguments);
+          };
+        }
+
+        var origXHR = window.XMLHttpRequest.prototype.open;
+        if (origXHR) {
+          window.XMLHttpRequest.prototype.open = function(method, url) {
+            if (isBlockedAd(url)) {
+              arguments[1] = 'about:blank';
+            }
+            return origXHR.apply(this, arguments);
+          };
         }
 
         // ── Fullscreen rotation support ───────────────────
@@ -424,11 +485,11 @@ export function getHotstarAdScript(): string {
         handleVideoAds();
         attachVideoListeners();
 
-        // Periodic cleanup (fast for ads, slower for banners)
+        // Periodic cleanup (ultra fast 100ms for ads, slower for banners)
         setInterval(function() {
           handleVideoAds();
           attachVideoListeners();
-        }, 300);
+        }, 100);
         setInterval(function() {
           removeAppBanners();
         }, 1000);
