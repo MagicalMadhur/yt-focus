@@ -1,8 +1,9 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { View, StyleSheet, BackHandler, Platform } from 'react-native';
-import { WebViewNavigation } from 'react-native-webview';
+import { View, StyleSheet, BackHandler, Platform, TouchableOpacity, Text, StatusBar } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { HotstarWebView, HotstarWebViewRef } from '../components/HotstarWebView';
 import { ErrorView } from '../components/ErrorView';
 import { OfflineView } from '../components/OfflineView';
@@ -19,38 +20,34 @@ export function HotstarScreen() {
   const navigation = useNavigation();
   const [hasError, setHasError] = useState(false);
 
-  // Handle back button (Android/hardware)
+  // Lock to landscape while viewing Hotstar, restore to portrait when leaving
   useFocusEffect(
     useCallback(() => {
-      if (Platform.OS !== 'android') return;
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+      StatusBar.setHidden(true);
 
       const onBackPress = () => {
         if (webViewRef.current?.canGoBack) {
           webViewRef.current.goBack();
           return true;
         }
-        return false;
+        // At root of Hotstar, return to Home/YouTube tab
+        (navigation as any).navigate('Home');
+        return true;
       };
 
-      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => subscription.remove();
-    }, [])
-  );
+      const subscription = Platform.OS === 'android'
+        ? BackHandler.addEventListener('hardwareBackPress', onBackPress)
+        : null;
 
-  // Hide/show tab bar on fullscreen change
-  const handleFullscreenChange = useCallback((isFullscreen: boolean) => {
-    navigation.getParent()?.setOptions({
-      tabBarStyle: isFullscreen
-        ? { display: 'none' }
-        : undefined, // undefined restores the default style
-    });
-    // Also apply to this navigator
-    navigation.setOptions({
-      tabBarStyle: isFullscreen
-        ? { display: 'none' }
-        : undefined,
-    });
-  }, [navigation]);
+      return () => {
+        // Restore to portrait when switching to other tabs
+        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        StatusBar.setHidden(false);
+        subscription?.remove();
+      };
+    }, [navigation])
+  );
 
   const handleRetry = useCallback(() => {
     setHasError(false);
@@ -68,13 +65,31 @@ export function HotstarScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background, paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.colors.background,
+          paddingLeft: insets.left,
+          paddingRight: insets.right,
+        },
+      ]}
+    >
       <HotstarWebView
         ref={webViewRef}
         url={HOTSTAR_HOME}
         onError={() => setHasError(true)}
-        onFullscreenChange={handleFullscreenChange}
       />
+
+      {/* Floating ZenTube button to easily switch back to YouTube */}
+      <TouchableOpacity
+        style={[styles.floatingBackBtn, { top: 10, right: Math.max(insets.right, 16) }]}
+        onPress={() => (navigation as any).navigate('Home')}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="arrow-back" size={13} color="#fff" />
+        <Text style={styles.floatingBackText}>ZenTube</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -83,4 +98,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  floatingBackBtn: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(20, 20, 20, 0.82)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    zIndex: 9999,
+  },
+  floatingBackText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
 });
+

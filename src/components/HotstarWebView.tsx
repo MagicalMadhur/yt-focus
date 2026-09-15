@@ -92,19 +92,12 @@ export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>
       return false;
     }, []);
 
-    // Handle messages from injected JavaScript (fullscreen rotation + tab bar hiding)
+    // Handle messages from injected JavaScript (fullscreen notifications)
     const handleMessage = useCallback((event: any) => {
       try {
         const data = JSON.parse(event.nativeEvent.data);
         if (data.type === 'fullscreen') {
           const isFS = !!data.isFullscreen;
-          if (isFS) {
-            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-            StatusBar.setHidden(true);
-          } else {
-            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-            StatusBar.setHidden(false);
-          }
           onFullscreenChange?.(isFS);
         }
       } catch (e) {
