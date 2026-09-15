@@ -136,7 +136,8 @@ export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>
           // iOS specific
           allowsLinkPreview={false}
           automaticallyAdjustContentInsets={false}
-          contentMode="mobile"
+          contentMode="desktop"
+          userAgent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
           // Misc
           pullToRefreshEnabled={true}
           javaScriptCanOpenWindowsAutomatically={false}
