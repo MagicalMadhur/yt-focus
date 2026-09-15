@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HomeScreen } from '../screens/HomeScreen';
 import { SubscriptionsScreen } from '../screens/SubscriptionsScreen';
@@ -65,6 +65,8 @@ export function BottomNavigation() {
   const { theme } = useTheme();
   const c = theme.colors;
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
 
   return (
     <Tab.Navigator
@@ -73,6 +75,7 @@ export function BottomNavigation() {
         tabBarActiveTintColor: c.activeTab,
         tabBarInactiveTintColor: c.inactiveTab,
         tabBarStyle: {
+          display: isLandscape ? 'none' : 'flex',
           backgroundColor: c.navBar,
           borderTopColor: c.navBarBorder,
           borderTopWidth: StyleSheet.hairlineWidth,

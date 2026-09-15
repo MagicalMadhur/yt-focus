@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { StyleSheet, Platform, View } from 'react-native';
+import { StyleSheet, Platform, View, StatusBar } from 'react-native';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 import * as Linking from 'expo-linking';
@@ -59,11 +59,12 @@ interface YouTubeWebViewProps {
   onNavigationStateChange?: (navState: WebViewNavigation) => void;
   onError?: () => void;
   onLoadEnd?: () => void;
+  onFullscreenChange?: (isFullscreen: boolean) => void;
 }
 
 // ─── Component ──────────────────────────────────────────────────
 export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>(
-  function YouTubeWebView({ url, hideShorts, contentFilter, onNavigationStateChange, onError, onLoadEnd }, ref) {
+  function YouTubeWebView({ url, hideShorts, contentFilter, onNavigationStateChange, onError, onLoadEnd, onFullscreenChange }, ref) {
     const webViewRef = useRef<WebView>(null);
     const canGoBackRef = useRef(false);
     const { theme } = useTheme();
@@ -123,16 +124,20 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
       try {
         const data = JSON.parse(event.nativeEvent.data);
         if (data.type === 'fullscreen') {
-          if (data.isFullscreen) {
+          const isFS = !!data.isFullscreen;
+          if (isFS) {
             ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+            StatusBar.setHidden(true);
           } else {
             ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+            StatusBar.setHidden(false);
           }
+          onFullscreenChange?.(isFS);
         }
       } catch (e) {
         // Ignore parse errors
       }
-    }, []);
+    }, [onFullscreenChange]);
 
     // Render loading
     const renderLoading = useCallback(() => {

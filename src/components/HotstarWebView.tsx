@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, StatusBar } from 'react-native';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 import * as Linking from 'expo-linking';
@@ -7,6 +7,10 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import { shouldBlockHotstarRequest, isHotstarAllowedUrl, getHotstarAdScript } from '../utils/hotstarFilter';
 import { LoadingView } from './LoadingView';
 import { useTheme } from '../theme/theme';
+
+// Mobile Chrome user agent — Hotstar serves the proper mobile web UI
+// but won't trigger the "download the app" prompt that iOS WebView UA causes
+const MOBILE_CHROME_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/126.0.6478.108 Mobile/15E148 Safari/604.1';
 
 // ─── Component Types ────────────────────────────────────────────
 export interface HotstarWebViewRef {
@@ -20,11 +24,12 @@ interface HotstarWebViewProps {
   onNavigationStateChange?: (navState: WebViewNavigation) => void;
   onError?: () => void;
   onLoadEnd?: () => void;
+  onFullscreenChange?: (isFullscreen: boolean) => void;
 }
 
 // ─── Component ──────────────────────────────────────────────────
 export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>(
-  function HotstarWebView({ url, onNavigationStateChange, onError, onLoadEnd }, ref) {
+  function HotstarWebView({ url, onNavigationStateChange, onError, onLoadEnd, onFullscreenChange }, ref) {
     const webViewRef = useRef<WebView>(null);
     const canGoBackRef = useRef(false);
     const { theme } = useTheme();
@@ -74,21 +79,25 @@ export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>
       return false;
     }, []);
 
-    // Handle messages from injected JavaScript (fullscreen rotation)
+    // Handle messages from injected JavaScript (fullscreen rotation + tab bar hiding)
     const handleMessage = useCallback((event: any) => {
       try {
         const data = JSON.parse(event.nativeEvent.data);
         if (data.type === 'fullscreen') {
-          if (data.isFullscreen) {
+          const isFS = !!data.isFullscreen;
+          if (isFS) {
             ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+            StatusBar.setHidden(true);
           } else {
             ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+            StatusBar.setHidden(false);
           }
+          onFullscreenChange?.(isFS);
         }
       } catch (e) {
         // Ignore parse errors
       }
-    }, []);
+    }, [onFullscreenChange]);
 
     // Render loading
     const renderLoading = useCallback(() => {
@@ -136,8 +145,8 @@ export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>
           // iOS specific
           allowsLinkPreview={false}
           automaticallyAdjustContentInsets={false}
-          contentMode="desktop"
-          userAgent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+          contentMode="mobile"
+          userAgent={MOBILE_CHROME_UA}
           // Misc
           pullToRefreshEnabled={true}
           javaScriptCanOpenWindowsAutomatically={false}

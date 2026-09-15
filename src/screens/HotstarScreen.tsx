@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { View, StyleSheet, BackHandler, Platform } from 'react-native';
 import { WebViewNavigation } from 'react-native-webview';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HotstarWebView, HotstarWebViewRef } from '../components/HotstarWebView';
 import { ErrorView } from '../components/ErrorView';
@@ -16,6 +16,7 @@ export function HotstarScreen() {
   const { isConnected } = useNetworkStatus();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const [hasError, setHasError] = useState(false);
 
   // Handle back button (Android/hardware)
@@ -35,6 +36,21 @@ export function HotstarScreen() {
       return () => subscription.remove();
     }, [])
   );
+
+  // Hide/show tab bar on fullscreen change
+  const handleFullscreenChange = useCallback((isFullscreen: boolean) => {
+    navigation.getParent()?.setOptions({
+      tabBarStyle: isFullscreen
+        ? { display: 'none' }
+        : undefined, // undefined restores the default style
+    });
+    // Also apply to this navigator
+    navigation.setOptions({
+      tabBarStyle: isFullscreen
+        ? { display: 'none' }
+        : undefined,
+    });
+  }, [navigation]);
 
   const handleRetry = useCallback(() => {
     setHasError(false);
@@ -57,6 +73,7 @@ export function HotstarScreen() {
         ref={webViewRef}
         url={HOTSTAR_HOME}
         onError={() => setHasError(true)}
+        onFullscreenChange={handleFullscreenChange}
       />
     </View>
   );
