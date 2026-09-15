@@ -81,12 +81,12 @@ export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>
         return true;
       }
 
-      // Allow data: and blob: URIs
-      if (reqUrl.startsWith('data:') || reqUrl.startsWith('blob:') || reqUrl.startsWith('about:')) {
+      // Allow data: and blob: URIs or valid web requests
+      if (reqUrl.startsWith('data:') || reqUrl.startsWith('blob:') || reqUrl.startsWith('about:') || reqUrl.startsWith('http://') || reqUrl.startsWith('https://')) {
         return true;
       }
 
-      // Open external links in system browser
+      // Open other external deep links in system browser
       Linking.openURL(reqUrl).catch(() => {});
       return false;
     }, []);
@@ -138,12 +138,6 @@ export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>
           renderLoading={renderLoading}
           // Error handling
           onError={() => onError?.()}
-          onHttpError={(syntheticEvent) => {
-            const { statusCode } = syntheticEvent.nativeEvent;
-            if (statusCode >= 500) {
-              onError?.();
-            }
-          }}
           onLoadEnd={() => onLoadEnd?.()}
           // Performance
           cacheEnabled={true}

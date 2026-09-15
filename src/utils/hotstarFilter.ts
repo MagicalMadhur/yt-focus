@@ -144,6 +144,19 @@ const HOTSTAR_ALLOWED_DOMAINS: string[] = [
 export function isHotstarAllowedUrl(url: string): boolean {
   try {
     const hostname = new URL(url).hostname.toLowerCase();
+
+    if (
+      hostname === 'hotstar.com' || hostname.endsWith('.hotstar.com') ||
+      hostname === 'jiohotstar.com' || hostname.endsWith('.jiohotstar.com') ||
+      hostname === 'hotstarext.com' || hostname.endsWith('.hotstarext.com') ||
+      hostname === 'jiocinema.com' || hostname.endsWith('.jiocinema.com') ||
+      hostname === 'jio.com' || hostname.endsWith('.jio.com') ||
+      hostname.endsWith('.akamaized.net') || hostname.endsWith('.akamaihd.net') ||
+      hostname.endsWith('.cloudfront.net')
+    ) {
+      return true;
+    }
+
     return HOTSTAR_ALLOWED_DOMAINS.some(
       (domain) => hostname === domain || hostname.endsWith('.' + domain)
     );
