@@ -177,6 +177,29 @@ export function SettingsScreen() {
           </View>
         </Section>
 
+        {/* ── Picture in Picture ────────────────────────── */}
+        <Section title="Picture in Picture">
+          <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.surfaceBorder }]}>
+            <SettingRowWithSwitch
+              icon="tv-outline"
+              label="YouTube PiP"
+              description="Continue YouTube video in mini player when you leave the app"
+              value={settings.pipYouTube}
+              onValueChange={(val) => updateSettings({ pipYouTube: val })}
+              theme={theme}
+            />
+            <View style={[styles.divider, { backgroundColor: c.surfaceBorder }]} />
+            <SettingRowWithSwitch
+              icon="film-outline"
+              label="Hotstar PiP"
+              description="Continue Hotstar video in mini player when you leave the app"
+              value={settings.pipHotstar}
+              onValueChange={(val) => updateSettings({ pipHotstar: val })}
+              theme={theme}
+            />
+          </View>
+        </Section>
+
         {/* ── About ──────────────────────────────────────── */}
         <Section title="About">
           <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.surfaceBorder }]}>

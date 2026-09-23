@@ -90,6 +90,7 @@ export function HomeScreen() {
         url={initialUrl}
         hideShorts={settings.hideShorts}
         contentFilter={settings.contentFilter}
+        pipEnabled={settings.pipYouTube}
         onNavigationStateChange={handleNavigationStateChange}
         onError={() => setHasError(true)}
       />

@@ -8,6 +8,8 @@ export interface AppSettings {
   openHomeOnStartup: boolean;
   rememberLastPage: boolean;
   autoFullscreen: boolean;
+  pipYouTube: boolean;
+  pipHotstar: boolean;
 }
 
 // ─── Defaults ───────────────────────────────────────────────────
@@ -18,6 +20,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   openHomeOnStartup: true,
   rememberLastPage: false,
   autoFullscreen: false,
+  pipYouTube: true,
+  pipHotstar: true,
 };
 
 // ─── Storage Keys ───────────────────────────────────────────────

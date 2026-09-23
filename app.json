@@ -22,7 +22,8 @@
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
-        }
+        },
+        "UIBackgroundModes": ["audio"]
       },
       "requireFullScreen": false
     },

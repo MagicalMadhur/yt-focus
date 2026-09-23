@@ -8,6 +8,7 @@ import { HotstarWebView, HotstarWebViewRef } from '../components/HotstarWebView'
 import { ErrorView } from '../components/ErrorView';
 import { OfflineView } from '../components/OfflineView';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../theme/theme';
 
 const HOTSTAR_HOME = 'https://www.hotstar.com/in';
@@ -15,6 +16,7 @@ const HOTSTAR_HOME = 'https://www.hotstar.com/in';
 export function HotstarScreen() {
   const webViewRef = useRef<HotstarWebViewRef>(null);
   const { isConnected } = useNetworkStatus();
+  const { settings } = useSettings();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -78,6 +80,7 @@ export function HotstarScreen() {
       <HotstarWebView
         ref={webViewRef}
         url={HOTSTAR_HOME}
+        pipEnabled={settings.pipHotstar}
         onError={() => setHasError(true)}
       />
 

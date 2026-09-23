@@ -56,6 +56,7 @@ interface YouTubeWebViewProps {
   url: string;
   hideShorts: boolean;
   contentFilter: boolean;
+  pipEnabled?: boolean;
   onNavigationStateChange?: (navState: WebViewNavigation) => void;
   onError?: () => void;
   onLoadEnd?: () => void;
@@ -64,7 +65,7 @@ interface YouTubeWebViewProps {
 
 // ─── Component ──────────────────────────────────────────────────
 export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>(
-  function YouTubeWebView({ url, hideShorts, contentFilter, onNavigationStateChange, onError, onLoadEnd, onFullscreenChange }, ref) {
+  function YouTubeWebView({ url, hideShorts, contentFilter, pipEnabled = true, onNavigationStateChange, onError, onLoadEnd, onFullscreenChange }, ref) {
     const webViewRef = useRef<WebView>(null);
     const canGoBackRef = useRef(false);
     const { theme } = useTheme();
@@ -160,6 +161,7 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
           allowsInlineMediaPlayback={true}
           mediaPlaybackRequiresUserAction={false}
           allowsFullscreenVideo={true}
+          allowsPictureInPictureMediaPlayback={pipEnabled}
           // Navigation
           allowsBackForwardNavigationGestures={true}
           onNavigationStateChange={handleNavigationStateChange}

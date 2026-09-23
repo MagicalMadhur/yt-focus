@@ -21,6 +21,7 @@ export interface HotstarWebViewRef {
 
 interface HotstarWebViewProps {
   url: string;
+  pipEnabled?: boolean;
   onNavigationStateChange?: (navState: WebViewNavigation) => void;
   onError?: () => void;
   onLoadEnd?: () => void;
@@ -29,7 +30,7 @@ interface HotstarWebViewProps {
 
 // ─── Component ──────────────────────────────────────────────────
 export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>(
-  function HotstarWebView({ url, onNavigationStateChange, onError, onLoadEnd, onFullscreenChange }, ref) {
+  function HotstarWebView({ url, pipEnabled = true, onNavigationStateChange, onError, onLoadEnd, onFullscreenChange }, ref) {
     const webViewRef = useRef<WebView>(null);
     const canGoBackRef = useRef(false);
     const { theme } = useTheme();
@@ -124,7 +125,8 @@ export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>
           // Media
           allowsInlineMediaPlayback={true}
           mediaPlaybackRequiresUserAction={false}
-          allowsFullscreenVideo={true}
+          allowsFullscreenVideo={false}
+          allowsPictureInPictureMediaPlayback={pipEnabled}
           // Navigation
           allowsBackForwardNavigationGestures={true}
           onNavigationStateChange={handleNavigationStateChange}
