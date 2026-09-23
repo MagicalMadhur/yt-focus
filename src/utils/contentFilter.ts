@@ -83,6 +83,59 @@ export function getAdFilterScript(): string {
     (function() {
       'use strict';
       try {
+        // ── Brave Shield-style JSON Pruning for YouTube ────────
+        // Strips adPlacements, adSlots, and playerAds before the player initializes.
+        // Removes all yellow ad markers from the video progress bar and stops glitches.
+        function pruneYTPlayerResponse(data) {
+          if (!data || typeof data !== 'object') return;
+          delete data.adPlacements;
+          delete data.adSlots;
+          delete data.playerAds;
+          delete data.adBreakHeartbeatParams;
+          if (data.playerResponse && typeof data.playerResponse === 'object') {
+            delete data.playerResponse.adPlacements;
+            delete data.playerResponse.adSlots;
+            delete data.playerResponse.playerAds;
+            delete data.playerResponse.adBreakHeartbeatParams;
+          }
+        }
+
+        try {
+          var _ytInitialPlayerResponse = window.ytInitialPlayerResponse;
+          pruneYTPlayerResponse(_ytInitialPlayerResponse);
+          Object.defineProperty(window, 'ytInitialPlayerResponse', {
+            get: function() { return _ytInitialPlayerResponse; },
+            set: function(val) {
+              pruneYTPlayerResponse(val);
+              _ytInitialPlayerResponse = val;
+            },
+            configurable: true
+          });
+        } catch(e) {}
+
+        var origJSONParse = JSON.parse;
+        JSON.parse = function() {
+          var res = origJSONParse.apply(this, arguments);
+          if (res && typeof res === 'object') {
+            if (res.adPlacements || res.adSlots || res.playerAds || (res.playerResponse && (res.playerResponse.adPlacements || res.playerResponse.adSlots))) {
+              pruneYTPlayerResponse(res);
+            }
+          }
+          return res;
+        };
+
+        if (window.Response && window.Response.prototype && window.Response.prototype.json) {
+          var origResponseJson = window.Response.prototype.json;
+          window.Response.prototype.json = function() {
+            return origResponseJson.apply(this, arguments).then(function(data) {
+              if (data && typeof data === 'object') {
+                pruneYTPlayerResponse(data);
+              }
+              return data;
+            });
+          };
+        }
+
         // ── CSS-based hiding of ad containers ──────────────
         var AD_STYLE_ID = '__ytfocus_adfilter_style';
         
@@ -91,6 +144,9 @@ export function getAdFilterScript(): string {
           var style = document.createElement('style');
           style.id = AD_STYLE_ID;
           style.textContent = [
+            // Video ad progress bar markers (yellow dots)
+            '.ytp-ad-progress-list { display: none !important; }',
+            '.ytp-ad-marker { display: none !important; }',
             // Video ad overlays
             '.ytp-ad-module { display: none !important; }',
             '.ytp-ad-overlay-container { display: none !important; }',

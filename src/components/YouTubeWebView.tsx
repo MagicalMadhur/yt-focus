@@ -167,7 +167,8 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
           onNavigationStateChange={handleNavigationStateChange}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
           onMessage={handleMessage}
-          // Injection
+          // Injection: run BEFORE content loads and on load
+          injectedJavaScriptBeforeContentLoaded={injectedScript}
           injectedJavaScript={injectedScript}
           // Loading
           startInLoadingState={true}
