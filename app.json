@@ -41,7 +41,8 @@
     "plugins": [
       "expo-screen-orientation",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      "./plugins/withBackgroundAudio"
     ],
     "extra": {
       "eas": {

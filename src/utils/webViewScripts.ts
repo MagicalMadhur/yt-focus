@@ -225,12 +225,163 @@ export function getFullscreenInterceptorScript(): string {
   `;
 }
 
+// ─── Media Backgrounding & Picture-in-Picture Script ───────────
+/**
+ * Brave iOS-style MediaBackgrounding:
+ * 1. Spoofs Document.prototype.visibilityState and hidden so web players never pause on minimize
+ * 2. Intercepts unintended pause events when the app moves to background
+ * 3. Provides window.__triggerZenTubePiP() to programmatically enter native iOS Picture-in-Picture
+ */
+export function getMediaBackgroundingScript(pipEnabled: boolean = true): string {
+  return `
+    (function() {
+      'use strict';
+      try {
+        window.__zenTubePipEnabled = ${pipEnabled};
+
+        // ── 1. Page Visibility Spoofing (Brave Shield MediaBackgrounding) ──
+        try {
+          Object.defineProperty(Document.prototype, 'visibilityState', {
+            enumerable: true,
+            configurable: true,
+            get: function() { return 'visible'; }
+          });
+          Object.defineProperty(Document.prototype, 'hidden', {
+            enumerable: true,
+            configurable: true,
+            get: function() { return false; }
+          });
+        } catch(e) {}
+
+        // ── 2. Track User Pause vs Backgrounding Pause ──
+        Object.defineProperty(HTMLVideoElement.prototype, 'userHitPause', {
+          enumerable: false,
+          configurable: true,
+          writable: true,
+          value: false
+        });
+
+        var origPause = HTMLVideoElement.prototype.pause;
+        HTMLVideoElement.prototype.pause = function() {
+          this.userHitPause = true;
+          return origPause.apply(this, arguments);
+        };
+
+        var origPlay = HTMLVideoElement.prototype.play;
+        HTMLVideoElement.prototype.play = function() {
+          this.userHitPause = false;
+          return origPlay.apply(this, arguments);
+        };
+
+        // ── 3. Picture-in-Picture Trigger Helper ──
+        window.__triggerZenTubePiP = function() {
+          try {
+            var videos = document.querySelectorAll('video');
+            for (var i = 0; i < videos.length; i++) {
+              var v = videos[i];
+              if (v) {
+                v.setAttribute('playsinline', 'true');
+                v.setAttribute('webkit-playsinline', 'true');
+                v.playsInline = true;
+
+                if (typeof v.webkitSetPresentationMode === 'function') {
+                  v.webkitSetPresentationMode('picture-in-picture');
+                  return true;
+                } else if (typeof v.requestPictureInPicture === 'function') {
+                  v.requestPictureInPicture().catch(function(){});
+                  return true;
+                }
+              }
+            }
+          } catch(e) {}
+          return false;
+        };
+
+        // ── 4. Attach Protection to Videos ──
+        function protectVideo(v) {
+          if (!v || v.__zenTubeProtected) return;
+          v.__zenTubeProtected = true;
+
+          v.setAttribute('playsinline', 'true');
+          v.setAttribute('webkit-playsinline', 'true');
+          v.playsInline = true;
+
+          // Resume on unintended background pause
+          v.addEventListener('pause', function() {
+            if (!v.userHitPause && !v.ended) {
+              setTimeout(function() {
+                if (!v.userHitPause && !v.ended) {
+                  origPlay.call(v);
+                }
+              }, 50);
+            }
+          }, false);
+
+          v.addEventListener('webkitpresentationmodechanged', function(e) {
+            e.stopPropagation();
+          }, true);
+        }
+
+        // Auto PiP on pagehide / backgrounding if enabled
+        window.addEventListener('pagehide', function() {
+          if (window.__zenTubePipEnabled) {
+            window.__triggerZenTubePiP();
+          }
+        });
+
+        // Scan existing videos
+        var existingVideos = document.querySelectorAll('video');
+        for (var i = 0; i < existingVideos.length; i++) {
+          protectVideo(existingVideos[i]);
+        }
+
+        // Observe DOM for newly added videos
+        if (typeof MutationObserver !== 'undefined') {
+          var observer = new MutationObserver(function(mutations) {
+            for (var m = 0; m < mutations.length; m++) {
+              var nodes = mutations[m].addedNodes;
+              for (var n = 0; n < nodes.length; n++) {
+                if (nodes[n].nodeName === 'VIDEO') {
+                  protectVideo(nodes[n]);
+                } else if (nodes[n].querySelectorAll) {
+                  var vids = nodes[n].querySelectorAll('video');
+                  for (var v = 0; v < vids.length; v++) {
+                    protectVideo(vids[v]);
+                  }
+                }
+              }
+            }
+          });
+          observer.observe(document.body || document.documentElement, {
+            childList: true,
+            subtree: true
+          });
+        }
+
+        // Periodic check to ensure all videos are protected
+        setInterval(function() {
+          var allVids = document.querySelectorAll('video');
+          for (var j = 0; j < allVids.length; j++) {
+            protectVideo(allVids[j]);
+          }
+        }, 1000);
+
+      } catch(e) {}
+    })();
+    true;
+  `;
+}
+
 // ─── Combined Script Builder ────────────────────────────────────
 /**
  * Builds the complete injection script based on settings.
  */
-export function buildInjectionScript(hideShorts: boolean, contentFilter: boolean = false): string {
-  const scripts: string[] = [getEnhancementScript(), getFullscreenInterceptorScript()];
+export function buildInjectionScript(hideShorts: boolean, contentFilter: boolean = false, pipEnabled: boolean = true): string {
+  const scripts: string[] = [
+    getEnhancementScript(),
+    getFullscreenInterceptorScript(),
+    getMediaBackgroundingScript(pipEnabled)
+  ];
   if (hideShorts) {
     scripts.push(getHideShortsScript());
   }

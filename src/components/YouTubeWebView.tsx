@@ -50,6 +50,7 @@ export interface YouTubeWebViewRef {
   goBack: () => void;
   reload: () => void;
   canGoBack: boolean;
+  injectJavaScript: (script: string) => void;
 }
 
 interface YouTubeWebViewProps {
@@ -70,13 +71,17 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
     const canGoBackRef = useRef(false);
     const { theme } = useTheme();
 
-    // Build injection script
-    const injectedScript = useMemo(() => buildInjectionScript(hideShorts, contentFilter), [hideShorts, contentFilter]);
+    // Build injection script with background playback and PiP configuration
+    const injectedScript = useMemo(
+      () => buildInjectionScript(hideShorts, contentFilter, pipEnabled),
+      [hideShorts, contentFilter, pipEnabled]
+    );
 
     // Expose imperative handle
     useImperativeHandle(ref, () => ({
       goBack: () => webViewRef.current?.goBack(),
       reload: () => webViewRef.current?.reload(),
+      injectJavaScript: (script: string) => webViewRef.current?.injectJavaScript(script),
       get canGoBack() {
         return canGoBackRef.current;
       },

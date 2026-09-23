@@ -1,5 +1,5 @@
-import React, { useRef, useState, useCallback } from 'react';
-import { View, StyleSheet, BackHandler, Platform, TouchableOpacity, Text, StatusBar } from 'react-native';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { View, StyleSheet, BackHandler, Platform, TouchableOpacity, Text, StatusBar, AppState } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,9 +51,40 @@ export function HotstarScreen() {
     }, [navigation])
   );
 
+  // Auto-trigger Picture-in-Picture on minimize / backgrounding if enabled
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'inactive' || nextAppState === 'background') {
+        if (settings.pipHotstar) {
+          webViewRef.current?.injectJavaScript(`
+            (function() {
+              if (window.__triggerZenTubePiP) {
+                window.__triggerZenTubePiP();
+              }
+            })();
+            true;
+          `);
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, [settings.pipHotstar]);
+
   const handleRetry = useCallback(() => {
     setHasError(false);
     webViewRef.current?.reload();
+  }, []);
+
+  const handleTriggerPiP = useCallback(() => {
+    webViewRef.current?.injectJavaScript(`
+      (function() {
+        if (window.__triggerZenTubePiP) {
+          window.__triggerZenTubePiP();
+        }
+      })();
+      true;
+    `);
   }, []);
 
   // Show offline view
@@ -84,15 +115,30 @@ export function HotstarScreen() {
         onError={() => setHasError(true)}
       />
 
-      {/* Floating ZenTube button to easily switch back to YouTube */}
-      <TouchableOpacity
-        style={[styles.floatingBackBtn, { top: Math.max(insets.top, 16), left: '50%', transform: [{ translateX: -40 }] }]}
-        onPress={() => (navigation as any).navigate('Home')}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="arrow-back" size={12} color="#fff" />
-        <Text style={styles.floatingBackText}>ZenTube</Text>
-      </TouchableOpacity>
+      {/* Floating Header Controls */}
+      <View style={[styles.floatingHeader, { top: Math.max(insets.top, 14) }]}>
+        {/* ZenTube Return Button */}
+        <TouchableOpacity
+          style={styles.floatingBtn}
+          onPress={() => (navigation as any).navigate('Home')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={12} color="#fff" />
+          <Text style={styles.floatingBtnText}>ZenTube</Text>
+        </TouchableOpacity>
+
+        {/* Floating PiP Button */}
+        {settings.pipHotstar && (
+          <TouchableOpacity
+            style={styles.floatingBtn}
+            onPress={handleTriggerPiP}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="copy-outline" size={12} color="#fff" />
+            <Text style={styles.floatingBtnText}>PiP</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -101,23 +147,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  floatingBackBtn: {
+  floatingHeader: {
     position: 'absolute',
+    left: '50%',
+    transform: [{ translateX: -70 }],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    zIndex: 9999,
+  },
+  floatingBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(20, 20, 20, 0.65)',
-    paddingHorizontal: 8,
+    backgroundColor: 'rgba(20, 20, 20, 0.75)',
+    paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    zIndex: 9999,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
-  floatingBackText: {
+  floatingBtnText: {
     color: '#fff',
     fontSize: 10,
     fontWeight: '600',
   },
 });
-

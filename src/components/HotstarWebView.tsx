@@ -17,6 +17,7 @@ export interface HotstarWebViewRef {
   goBack: () => void;
   reload: () => void;
   canGoBack: boolean;
+  injectJavaScript: (script: string) => void;
 }
 
 interface HotstarWebViewProps {
@@ -35,13 +36,14 @@ export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>
     const canGoBackRef = useRef(false);
     const { theme } = useTheme();
 
-    // Build injection script
-    const injectedScript = useMemo(() => getHotstarAdScript(), []);
+    // Build injection script with background playback and PiP configuration
+    const injectedScript = useMemo(() => getHotstarAdScript(pipEnabled), [pipEnabled]);
 
     // Expose imperative handle
     useImperativeHandle(ref, () => ({
       goBack: () => webViewRef.current?.goBack(),
       reload: () => webViewRef.current?.reload(),
+      injectJavaScript: (script: string) => webViewRef.current?.injectJavaScript(script),
       get canGoBack() {
         return canGoBackRef.current;
       },
@@ -125,7 +127,7 @@ export const HotstarWebView = forwardRef<HotstarWebViewRef, HotstarWebViewProps>
           // Media
           allowsInlineMediaPlayback={true}
           mediaPlaybackRequiresUserAction={false}
-          allowsFullscreenVideo={false}
+          allowsFullscreenVideo={true}
           allowsPictureInPictureMediaPlayback={pipEnabled}
           // Navigation
           allowsBackForwardNavigationGestures={true}

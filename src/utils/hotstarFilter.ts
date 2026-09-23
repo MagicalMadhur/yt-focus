@@ -240,11 +240,12 @@ export function isHotstarAllowedUrl(url: string): boolean {
 // 4. Inline video enforcement & webkitEnterFullscreen neutering (prevents native iOS fullscreen ads).
 // 5. Active 50ms video ad killer & auto-skip (seeks forward +15s, fast-forwards 16x, clicks skip).
 // 6. CSS ad hiding & app download banner removal.
-export function getHotstarAdScript(): string {
+export function getHotstarAdScript(pipEnabled: boolean = true): string {
   return `
     (function() {
       'use strict';
       try {
+        window.__zenTubePipEnabled = ${pipEnabled};
 
         // ════════════════════════════════════════════════════
         // PHASE 1: JSON-PRUNE ENGINE (Brave & uBlock Origin)
@@ -752,11 +753,69 @@ export function getHotstarAdScript(): string {
 
 
         // ════════════════════════════════════════════════════
-        // PHASE 4: PREVENT NATIVE IOS FULLSCREEN ADS
+        // PHASE 4: BACKGROUND PLAYBACK & PICTURE-IN-PICTURE
         // ════════════════════════════════════════════════════
-        // When ads open in iPhone's landscape fullscreen player,
-        // it's because the ad video lacks playsinline or calls webkitEnterFullscreen.
-        // We enforce inline playback and neuter fullscreen overrides.
+        // 1. Enforces inline video to prevent ad players from forcing iOS AVPlayer
+        // 2. Brave Shield MediaBackgrounding: keeps audio playing when minimized
+        // 3. Picture-in-Picture trigger support for native iOS floating window
+
+        try {
+          Object.defineProperty(Document.prototype, 'visibilityState', {
+            enumerable: true,
+            configurable: true,
+            get: function() { return 'visible'; }
+          });
+          Object.defineProperty(Document.prototype, 'hidden', {
+            enumerable: true,
+            configurable: true,
+            get: function() { return false; }
+          });
+        } catch(e) {}
+
+        Object.defineProperty(HTMLVideoElement.prototype, 'userHitPause', {
+          enumerable: false,
+          configurable: true,
+          writable: true,
+          value: false
+        });
+
+        var origVideoPause = HTMLVideoElement.prototype.pause;
+        HTMLVideoElement.prototype.pause = function() {
+          this.userHitPause = true;
+          return origVideoPause.apply(this, arguments);
+        };
+
+        var origVideoPlay = HTMLVideoElement.prototype.play;
+        HTMLVideoElement.prototype.play = function() {
+          this.userHitPause = false;
+          return origVideoPlay.apply(this, arguments);
+        };
+
+        window.__triggerZenTubePiP = function() {
+          try {
+            var videos = document.querySelectorAll('video');
+            for (var i = 0; i < videos.length; i++) {
+              var v = videos[i];
+              if (v) {
+                enforceInlineVideo(v);
+                if (typeof v.webkitSetPresentationMode === 'function') {
+                  v.webkitSetPresentationMode('picture-in-picture');
+                  return true;
+                } else if (typeof v.requestPictureInPicture === 'function') {
+                  v.requestPictureInPicture().catch(function(){});
+                  return true;
+                }
+              }
+            }
+          } catch(e) {}
+          return false;
+        };
+
+        window.addEventListener('pagehide', function() {
+          if (window.__zenTubePipEnabled) {
+            window.__triggerZenTubePiP();
+          }
+        });
 
         function enforceInlineVideo(v) {
           if (!v) return;
@@ -764,6 +823,23 @@ export function getHotstarAdScript(): string {
           v.setAttribute('webkit-playsinline', 'true');
           v.playsInline = true;
           v.webkitPlaysInline = true;
+
+          if (!v.__bg_protected) {
+            v.__bg_protected = true;
+            v.addEventListener('pause', function() {
+              if (!v.userHitPause && !v.ended) {
+                setTimeout(function() {
+                  if (!v.userHitPause && !v.ended) {
+                    origVideoPlay.call(v);
+                  }
+                }, 50);
+              }
+            }, false);
+
+            v.addEventListener('webkitpresentationmodechanged', function(e) {
+              e.stopPropagation();
+            }, true);
+          }
         }
 
         // Neuter webkitEnterFullscreen to prevent ad players from forcing iOS AVPlayer
