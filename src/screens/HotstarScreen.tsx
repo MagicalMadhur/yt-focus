@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, BackHandler, Platform, TouchableOpacity, Text, StatusBar, AppState } from 'react-native';
+import { View, StyleSheet, BackHandler, Platform, TouchableOpacity, Text, StatusBar, AppState, AppStateStatus } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,10 +51,16 @@ export function HotstarScreen() {
     }, [navigation])
   );
 
-  // Auto-trigger Picture-in-Picture on minimize / backgrounding if enabled
+  // Auto-trigger PiP on minimize & re-sync WebView on foreground return
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
+      const prevState = appStateRef.current;
+      appStateRef.current = nextAppState;
+
       if (nextAppState === 'inactive' || nextAppState === 'background') {
+        // Going to background → trigger PiP if enabled
         if (settings.pipHotstar) {
           webViewRef.current?.injectJavaScript(`
             (function() {
@@ -65,6 +71,28 @@ export function HotstarScreen() {
             true;
           `);
         }
+      } else if (nextAppState === 'active' && (prevState === 'background' || prevState === 'inactive')) {
+        // Returning to foreground → re-sync WebView to prevent freeze/hang
+        webViewRef.current?.injectJavaScript(`
+          (function() {
+            try {
+              // Exit PiP if still active
+              var videos = document.querySelectorAll('video');
+              for (var i = 0; i < videos.length; i++) {
+                var v = videos[i];
+                if (v && typeof v.webkitSetPresentationMode === 'function') {
+                  try { v.webkitSetPresentationMode('inline'); } catch(e) {}
+                }
+                v.style.pointerEvents = 'auto';
+              }
+              // Force a layout reflow to unfreeze the page
+              document.body.style.display = 'none';
+              void document.body.offsetHeight;
+              document.body.style.display = '';
+            } catch(e) {}
+          })();
+          true;
+        `);
       }
     });
 
@@ -76,16 +104,7 @@ export function HotstarScreen() {
     webViewRef.current?.reload();
   }, []);
 
-  const handleTriggerPiP = useCallback(() => {
-    webViewRef.current?.injectJavaScript(`
-      (function() {
-        if (window.__triggerZenTubePiP) {
-          window.__triggerZenTubePiP();
-        }
-      })();
-      true;
-    `);
-  }, []);
+
 
   // Show offline view
   if (isConnected === false) {
@@ -126,18 +145,6 @@ export function HotstarScreen() {
           <Ionicons name="arrow-back" size={12} color="#fff" />
           <Text style={styles.floatingBtnText}>ZenTube</Text>
         </TouchableOpacity>
-
-        {/* Floating PiP Button */}
-        {settings.pipHotstar && (
-          <TouchableOpacity
-            style={styles.floatingBtn}
-            onPress={handleTriggerPiP}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="copy-outline" size={12} color="#fff" />
-            <Text style={styles.floatingBtnText}>PiP</Text>
-          </TouchableOpacity>
-        )}
       </View>
     </View>
   );

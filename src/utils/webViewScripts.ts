@@ -229,15 +229,20 @@ export function getFullscreenInterceptorScript(): string {
 /**
  * Brave iOS-style MediaBackgrounding:
  * 1. Spoofs Document.prototype.visibilityState and hidden so web players never pause on minimize
- * 2. Intercepts unintended pause events when the app moves to background
+ * 2. Intercepts unintended pause events when the app moves to background with multi-retry
  * 3. Provides window.__triggerZenTubePiP() to programmatically enter native iOS Picture-in-Picture
+ * 4. Tracks foreground/background state to prevent WebView freezing on return
  */
 export function getMediaBackgroundingScript(pipEnabled: boolean = true): string {
   return `
     (function() {
       'use strict';
+      if (window.__zenTubeMediaBGInstalled) return;
+      window.__zenTubeMediaBGInstalled = true;
+
       try {
         window.__zenTubePipEnabled = ${pipEnabled};
+        window.__zenTubeIsBackground = false;
 
         // ── 1. Page Visibility Spoofing (Brave Shield MediaBackgrounding) ──
         try {
@@ -251,6 +256,10 @@ export function getMediaBackgroundingScript(pipEnabled: boolean = true): string 
             configurable: true,
             get: function() { return false; }
           });
+          // Block visibilitychange events from reaching listeners
+          document.addEventListener('visibilitychange', function(e) {
+            e.stopImmediatePropagation();
+          }, true);
         } catch(e) {}
 
         // ── 2. Track User Pause vs Backgrounding Pause ──
@@ -263,7 +272,10 @@ export function getMediaBackgroundingScript(pipEnabled: boolean = true): string 
 
         var origPause = HTMLVideoElement.prototype.pause;
         HTMLVideoElement.prototype.pause = function() {
-          this.userHitPause = true;
+          // Only mark as user pause if we're NOT in background
+          if (!window.__zenTubeIsBackground) {
+            this.userHitPause = true;
+          }
           return origPause.apply(this, arguments);
         };
 
@@ -279,7 +291,7 @@ export function getMediaBackgroundingScript(pipEnabled: boolean = true): string 
             var videos = document.querySelectorAll('video');
             for (var i = 0; i < videos.length; i++) {
               var v = videos[i];
-              if (v) {
+              if (v && !v.paused) {
                 v.setAttribute('playsinline', 'true');
                 v.setAttribute('webkit-playsinline', 'true');
                 v.playsInline = true;
@@ -297,7 +309,33 @@ export function getMediaBackgroundingScript(pipEnabled: boolean = true): string 
           return false;
         };
 
-        // ── 4. Attach Protection to Videos ──
+        // ── 4. Multi-retry resume helper ──
+        function tryResumeVideo(v, attempt) {
+          if (!v || v.userHitPause || v.ended) return;
+          if (v.paused) {
+            try {
+              var playPromise = origPlay.call(v);
+              if (playPromise && playPromise.catch) {
+                playPromise.catch(function() {
+                  // If play failed and we have retries left, try again
+                  if (attempt < 3) {
+                    setTimeout(function() {
+                      tryResumeVideo(v, attempt + 1);
+                    }, 200 * (attempt + 1));
+                  }
+                });
+              }
+            } catch(e) {
+              if (attempt < 3) {
+                setTimeout(function() {
+                  tryResumeVideo(v, attempt + 1);
+                }, 200 * (attempt + 1));
+              }
+            }
+          }
+        }
+
+        // ── 5. Attach Protection to Videos ──
         function protectVideo(v) {
           if (!v || v.__zenTubeProtected) return;
           v.__zenTubeProtected = true;
@@ -306,14 +344,10 @@ export function getMediaBackgroundingScript(pipEnabled: boolean = true): string 
           v.setAttribute('webkit-playsinline', 'true');
           v.playsInline = true;
 
-          // Resume on unintended background pause
+          // Resume on unintended background pause with multi-retry
           v.addEventListener('pause', function() {
             if (!v.userHitPause && !v.ended) {
-              setTimeout(function() {
-                if (!v.userHitPause && !v.ended) {
-                  origPlay.call(v);
-                }
-              }, 50);
+              tryResumeVideo(v, 0);
             }
           }, false);
 
@@ -322,20 +356,50 @@ export function getMediaBackgroundingScript(pipEnabled: boolean = true): string 
           }, true);
         }
 
-        // Auto PiP on pagehide / backgrounding if enabled
+        // ── 6. Background/Foreground detection via page lifecycle ──
         window.addEventListener('pagehide', function() {
+          window.__zenTubeIsBackground = true;
           if (window.__zenTubePipEnabled) {
             window.__triggerZenTubePiP();
           }
+          // Force-resume any paused videos after a short delay
+          setTimeout(function() {
+            var vids = document.querySelectorAll('video');
+            for (var i = 0; i < vids.length; i++) {
+              tryResumeVideo(vids[i], 0);
+            }
+          }, 100);
         });
 
-        // Scan existing videos
+        window.addEventListener('pageshow', function() {
+          window.__zenTubeIsBackground = false;
+        });
+
+        // Also handle blur/focus at window level
+        window.addEventListener('blur', function() {
+          window.__zenTubeIsBackground = true;
+          // Ensure videos keep playing after a moment
+          setTimeout(function() {
+            var vids = document.querySelectorAll('video');
+            for (var i = 0; i < vids.length; i++) {
+              if (!vids[i].userHitPause && !vids[i].ended && vids[i].paused) {
+                tryResumeVideo(vids[i], 0);
+              }
+            }
+          }, 150);
+        });
+
+        window.addEventListener('focus', function() {
+          window.__zenTubeIsBackground = false;
+        });
+
+        // ── 7. Scan existing videos ──
         var existingVideos = document.querySelectorAll('video');
         for (var i = 0; i < existingVideos.length; i++) {
           protectVideo(existingVideos[i]);
         }
 
-        // Observe DOM for newly added videos
+        // ── 8. Observe DOM for newly added videos ──
         if (typeof MutationObserver !== 'undefined') {
           var observer = new MutationObserver(function(mutations) {
             for (var m = 0; m < mutations.length; m++) {
@@ -358,13 +422,17 @@ export function getMediaBackgroundingScript(pipEnabled: boolean = true): string 
           });
         }
 
-        // Periodic check to ensure all videos are protected
+        // ── 9. Periodic protection + resume check (every 2s to reduce CPU) ──
         setInterval(function() {
           var allVids = document.querySelectorAll('video');
           for (var j = 0; j < allVids.length; j++) {
             protectVideo(allVids[j]);
+            // If we're in background and a video got paused unintentionally, resume it
+            if (window.__zenTubeIsBackground && !allVids[j].userHitPause && !allVids[j].ended && allVids[j].paused) {
+              tryResumeVideo(allVids[j], 0);
+            }
           }
-        }, 1000);
+        }, 2000);
 
       } catch(e) {}
     })();

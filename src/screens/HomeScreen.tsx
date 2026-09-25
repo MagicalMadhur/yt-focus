@@ -1,9 +1,8 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, BackHandler, Platform, TouchableOpacity, Text, AppState } from 'react-native';
+import { View, StyleSheet, BackHandler, Platform, AppState, AppStateStatus } from 'react-native';
 import { WebViewNavigation } from 'react-native-webview';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { YouTubeWebView, YouTubeWebViewRef } from '../components/YouTubeWebView';
 import { ErrorView } from '../components/ErrorView';
 import { OfflineView } from '../components/OfflineView';
@@ -37,10 +36,16 @@ export function HomeScreen() {
     })();
   }, []);
 
-  // Auto-trigger Picture-in-Picture on minimize / backgrounding if enabled
+  // Auto-trigger PiP on minimize & re-sync WebView on foreground return
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
+      const prevState = appStateRef.current;
+      appStateRef.current = nextAppState;
+
       if (nextAppState === 'inactive' || nextAppState === 'background') {
+        // Going to background → trigger PiP if enabled
         if (settings.pipYouTube) {
           webViewRef.current?.injectJavaScript(`
             (function() {
@@ -51,6 +56,29 @@ export function HomeScreen() {
             true;
           `);
         }
+      } else if (nextAppState === 'active' && (prevState === 'background' || prevState === 'inactive')) {
+        // Returning to foreground → re-sync WebView to prevent freeze/hang
+        webViewRef.current?.injectJavaScript(`
+          (function() {
+            try {
+              // Exit PiP if still active
+              var videos = document.querySelectorAll('video');
+              for (var i = 0; i < videos.length; i++) {
+                var v = videos[i];
+                if (v && typeof v.webkitSetPresentationMode === 'function') {
+                  try { v.webkitSetPresentationMode('inline'); } catch(e) {}
+                }
+                // Re-enable user interaction on the video
+                v.style.pointerEvents = 'auto';
+              }
+              // Force a layout reflow to unfreeze the page
+              document.body.style.display = 'none';
+              void document.body.offsetHeight;
+              document.body.style.display = '';
+            } catch(e) {}
+          })();
+          true;
+        `);
       }
     });
 
@@ -90,16 +118,7 @@ export function HomeScreen() {
     webViewRef.current?.reload();
   }, []);
 
-  const handleTriggerPiP = useCallback(() => {
-    webViewRef.current?.injectJavaScript(`
-      (function() {
-        if (window.__triggerZenTubePiP) {
-          window.__triggerZenTubePiP();
-        }
-      })();
-      true;
-    `);
-  }, []);
+
 
   // Show offline view
   if (isConnected === false) {
@@ -126,18 +145,6 @@ export function HomeScreen() {
         onNavigationStateChange={handleNavigationStateChange}
         onError={() => setHasError(true)}
       />
-
-      {/* Floating Picture-in-Picture Button */}
-      {settings.pipYouTube && (
-        <TouchableOpacity
-          style={[styles.floatingPiPBtn, { top: insets.top + 8, right: 14 }]}
-          onPress={handleTriggerPiP}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="copy-outline" size={13} color="#fff" />
-          <Text style={styles.floatingPiPText}>PiP</Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
@@ -145,23 +152,5 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  floatingPiPBtn: {
-    position: 'absolute',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(20, 20, 20, 0.75)',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    zIndex: 9999,
-  },
-  floatingPiPText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
   },
 });
