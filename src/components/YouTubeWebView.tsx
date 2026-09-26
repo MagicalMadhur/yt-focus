@@ -95,11 +95,7 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
         // If navigation occurred while in fullscreen (e.g. user went back or navigated away from watch page)
         if (isFullscreen && !navState.url?.includes('/watch')) {
           onFullscreenChange?.(false);
-          ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).then(() => {
-            setTimeout(() => {
-              ScreenOrientation.unlockAsync();
-            }, 400);
-          });
+          ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
           StatusBar.setHidden(false);
         }
         onNavigationStateChange?.(navState);
@@ -143,16 +139,10 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
         if (data.type === 'fullscreen') {
           const isFS = !!data.isFullscreen;
           if (isFS) {
-            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => {});
             StatusBar.setHidden(true);
           } else {
-            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
-              .then(() => {
-                setTimeout(() => {
-                  ScreenOrientation.unlockAsync().catch(() => {});
-                }, 1200);
-              })
-              .catch(() => {});
+            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
             StatusBar.setHidden(false);
           }
           onFullscreenChange?.(isFS);

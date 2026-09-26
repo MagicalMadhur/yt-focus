@@ -112,13 +112,17 @@ export function HomeScreen() {
 
       return () => {
         subscription?.remove();
-        // Restore portrait orientation and status bar ONLY when navigating away from YouTube screen
-        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).then(() => {
-          setTimeout(() => {
-            ScreenOrientation.unlockAsync();
-          }, 300);
-        });
-        StatusBar.setHidden(false);
+        // If in fullscreen when navigating away, tell webView to exit fullscreen
+        if (isFullscreenRef.current) {
+          webViewRef.current?.injectJavaScript(`
+            (function() {
+              if (window.__exitZenTubeFullscreen) {
+                window.__exitZenTubeFullscreen();
+              }
+            })();
+            true;
+          `);
+        }
       };
     }, [])
   );
