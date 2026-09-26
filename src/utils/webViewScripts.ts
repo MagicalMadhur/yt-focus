@@ -268,7 +268,14 @@ export function getFullscreenInterceptorScript(): string {
           'html.__yt_zen_fullscreen #comments {',
           '  display: none !important;',
           '}',
-          // Completely hide overlapping action buttons and recommendation panels in fullscreen
+          // Completely hide buggy mobile overlays in fullscreen so they never block the desktop player
+          'html.__yt_zen_fullscreen .player-controls-background,',
+          'html.__yt_zen_fullscreen .player-control-overlay,',
+          'html.__yt_zen_fullscreen .player-controls-bottom,',
+          'html.__yt_zen_fullscreen .player-controls-top,',
+          'html.__yt_zen_fullscreen .player-controls-middle,',
+          'html.__yt_zen_fullscreen ytm-custom-control,',
+          'html.__yt_zen_fullscreen .ytm-custom-control,',
           'html.__yt_zen_fullscreen button[aria-label*="Share" i],',
           'html.__yt_zen_fullscreen button[aria-label*="Save" i],',
           'html.__yt_zen_fullscreen button[aria-label*="Remix" i],',
@@ -364,138 +371,63 @@ export function getFullscreenInterceptorScript(): string {
           '  z-index: 1 !important;',
           '  pointer-events: none !important;',
           '}',
-          'html.__yt_zen_fullscreen .player-controls-background,',
-          'html.__yt_zen_fullscreen .player-control-overlay,',
-          'html.__yt_zen_fullscreen .ytp-touch-overlay,',
-          'html.__yt_zen_fullscreen ytm-custom-control,',
-          'html.__yt_zen_fullscreen .ytm-custom-control {',
-          '  position: absolute !important;',
-          '  top: 0 !important;',
-          '  left: 0 !important;',
-          '  width: 100% !important;',
-          '  height: 100% !important;',
-          '  z-index: 10 !important;',
-          '  pointer-events: auto !important;',
-          '  box-sizing: border-box !important;',
-          '}',
-          'html.__yt_zen_fullscreen .player-controls-top {',
-          '  position: absolute !important;',
-          '  top: 0 !important;',
-          '  left: 0 !important;',
-          '  width: 100% !important;',
-          '  z-index: 15 !important;',
-          '  pointer-events: auto !important;',
-          '  padding-top: env(safe-area-inset-top, 8px) !important;',
-          '  padding-left: env(safe-area-inset-left, 24px) !important;',
-          '  padding-right: env(safe-area-inset-right, 24px) !important;',
-          '}',
-          'html.__yt_zen_fullscreen .player-controls-middle {',
-          '  position: absolute !important;',
-          '  top: 50% !important;',
-          '  left: 50% !important;',
-          '  transform: translate(-50%, -50%) !important;',
-          '  z-index: 15 !important;',
-          '  pointer-events: auto !important;',
+          // Pristine YouTube Desktop HTML5 Player Controls in Fullscreen
+          'html.__yt_zen_fullscreen .ytp-chrome-bottom {',
           '  display: flex !important;',
-          '  align-items: center !important;',
-          '  justify-content: center !important;',
-          '}',
-          // Bottom controls container: column flex with progress bar on top, controls on bottom
-          'html.__yt_zen_fullscreen .player-controls-bottom {',
+          '  visibility: visible !important;',
           '  position: absolute !important;',
           '  bottom: 0 !important;',
           '  left: 0 !important;',
           '  width: 100% !important;',
-          '  display: flex !important;',
-          '  flex-direction: column !important;',
-          '  justify-content: flex-end !important;',
-          '  z-index: 20 !important;',
+          '  height: 48px !important;',
+          '  z-index: 999999999 !important;',
           '  pointer-events: auto !important;',
           '  padding-bottom: env(safe-area-inset-bottom, 12px) !important;',
           '  padding-left: env(safe-area-inset-left, 24px) !important;',
           '  padding-right: env(safe-area-inset-right, 24px) !important;',
           '  box-sizing: border-box !important;',
           '}',
-          'html.__yt_zen_fullscreen .player-controls-bottom-bar {',
+          'html.__yt_zen_fullscreen .ytp-chrome-top {',
           '  display: flex !important;',
-          '  align-items: center !important;',
-          '  justify-content: space-between !important;',
+          '  visibility: visible !important;',
+          '  position: absolute !important;',
+          '  top: 0 !important;',
+          '  left: 0 !important;',
           '  width: 100% !important;',
-          '  height: 38px !important;',
+          '  height: 48px !important;',
+          '  z-index: 999999999 !important;',
           '  pointer-events: auto !important;',
-          '  margin-top: 4px !important;',
+          '  padding-top: env(safe-area-inset-top, 8px) !important;',
+          '  padding-left: env(safe-area-inset-left, 24px) !important;',
+          '  padding-right: env(safe-area-inset-right, 24px) !important;',
           '}',
-          'html.__yt_zen_fullscreen .player-controls-bottom-bar-left {',
-          '  display: flex !important;',
-          '  align-items: center !important;',
-          '  justify-content: flex-start !important;',
-          '}',
-          'html.__yt_zen_fullscreen .player-controls-bottom-bar-right {',
-          '  display: flex !important;',
-          '  align-items: center !important;',
-          '  justify-content: flex-end !important;',
-          '  gap: 16px !important;',
-          '}',
-          'html.__yt_zen_fullscreen .time-display,',
-          'html.__yt_zen_fullscreen .ytp-time-display {',
-          '  display: inline-block !important;',
-          '  pointer-events: auto !important;',
-          '  font-size: 13px !important;',
-          '  color: #fff !important;',
-          '}',
-          // Full-width, completely unobstructed progress bar
-          'html.__yt_zen_fullscreen .player-controls-progress-bar,',
-          'html.__yt_zen_fullscreen .progress-bar-line,',
-          'html.__yt_zen_fullscreen ytm-progress-bar,',
-          'html.__yt_zen_fullscreen .ytp-progress-bar-container,',
-          'html.__yt_zen_fullscreen .ytp-progress-bar {',
-          '  width: 100% !important;',
-          '  height: 22px !important;',
-          '  min-height: 22px !important;',
-          '  display: flex !important;',
-          '  align-items: center !important;',
+          'html.__yt_zen_fullscreen .ytp-progress-bar-container {',
+          '  display: block !important;',
           '  pointer-events: auto !important;',
           '  cursor: pointer !important;',
+          '  height: 24px !important;',
           '  z-index: 30 !important;',
-          '  touch-action: none !important;',
+          '}',
+          'html.__yt_zen_fullscreen .ytp-progress-bar {',
+          '  pointer-events: auto !important;',
+          '  cursor: pointer !important;',
           '}',
           'html.__yt_zen_fullscreen .ytp-scrubber-container,',
-          'html.__yt_zen_fullscreen .ytp-scrubber-button,',
-          'html.__yt_zen_fullscreen .scrubber-button,',
-          'html.__yt_zen_fullscreen .progress-bar-playhead {',
+          'html.__yt_zen_fullscreen .ytp-scrubber-button {',
           '  pointer-events: auto !important;',
           '  cursor: pointer !important;',
           '  z-index: 35 !important;',
           '}',
-          'html.__yt_zen_fullscreen .player-control-play-pause-icon,',
-          'html.__yt_zen_fullscreen .icon-button,',
-          'html.__yt_zen_fullscreen .ytp-button,',
-          'html.__yt_zen_fullscreen .fullscreen-icon,',
-          'html.__yt_zen_fullscreen .ytm-fullscreen-button,',
-          'html.__yt_zen_fullscreen button {',
+          'html.__yt_zen_fullscreen .ytp-button {',
           '  pointer-events: auto !important;',
           '  cursor: pointer !important;',
           '}',
-          'html.__yt_zen_fullscreen .ytp-chrome-bottom {',
-          '  width: 100% !important;',
-          '  left: 0 !important;',
-          '  bottom: 0 !important;',
-          '  box-sizing: border-box !important;',
-          '  z-index: 25 !important;',
+          'html.__yt_zen_fullscreen .ytp-settings-button {',
+          '  display: inline-block !important;',
+          '  visibility: visible !important;',
           '  pointer-events: auto !important;',
-          '  padding-bottom: env(safe-area-inset-bottom, 12px) !important;',
-          '  padding-left: env(safe-area-inset-left, 24px) !important;',
-          '  padding-right: env(safe-area-inset-right, 24px) !important;',
-          '}',
-          'html.__yt_zen_fullscreen .ytp-chrome-top {',
-          '  width: 100% !important;',
-          '  left: 0 !important;',
-          '  top: 0 !important;',
-          '  z-index: 25 !important;',
-          '  pointer-events: auto !important;',
-          '  padding-top: env(safe-area-inset-top, 8px) !important;',
-          '  padding-left: env(safe-area-inset-left, 24px) !important;',
-          '  padding-right: env(safe-area-inset-right, 24px) !important;',
+          '  cursor: pointer !important;',
+          '  z-index: 100 !important;',
           '}',
           'html.__yt_zen_fullscreen .ytp-gradient-bottom,',
           'html.__yt_zen_fullscreen .ytp-gradient-top {',
@@ -506,12 +438,12 @@ export function getFullscreenInterceptorScript(): string {
           '}',
           'html.__yt_zen_fullscreen .ytp-settings-menu,',
           'html.__yt_zen_fullscreen .ytp-popup,',
-          'html.__yt_zen_fullscreen ytm-menu-popup-renderer,',
-          'html.__yt_zen_fullscreen tp-yt-iron-dropdown,',
-          'html.__yt_zen_fullscreen .ytp-panel-menu,',
-          'html.__yt_zen_fullscreen .ytp-caption-window-container {',
-          '  z-index: 50 !important;',
+          'html.__yt_zen_fullscreen .ytp-panel-menu {',
+          '  position: fixed !important;',
+          '  z-index: 2147483647 !important;',
           '  pointer-events: auto !important;',
+          '  display: block !important;',
+          '  visibility: visible !important;',
           '}'
         ].join('\\n');
         (document.head || document.documentElement).appendChild(style);
@@ -528,7 +460,7 @@ export function getFullscreenInterceptorScript(): string {
         }
       }
 
-      function wakeUpControls() {
+      function wakeUpDesktopControls() {
         try {
           var mp = document.querySelector('#movie_player') || document.querySelector('.html5-video-player');
           if (mp) {
@@ -536,38 +468,16 @@ export function getFullscreenInterceptorScript(): string {
             mp.classList.add('ytp-user-active');
             if (typeof mp.wakeUpControls === 'function') mp.wakeUpControls();
           }
-
-          var overlays = document.querySelectorAll(
-            '.player-control-overlay, .player-controls-background, .player-controls-middle, .player-controls-bottom, .player-controls-top'
-          );
-          for (var i = 0; i < overlays.length; i++) {
-            var el = overlays[i];
-            el.classList.remove('fade-out');
-            el.classList.add('fade-in');
-            el.style.setProperty('opacity', '1', 'important');
-            el.style.setProperty('pointer-events', 'auto', 'important');
-          }
           scheduleControlsAutoHide();
         } catch(e) {}
       }
 
-      function hideControls() {
+      function hideDesktopControls() {
         try {
           var mp = document.querySelector('#movie_player') || document.querySelector('.html5-video-player');
           if (mp) {
             mp.classList.add('ytp-autohide');
             mp.classList.remove('ytp-user-active');
-          }
-
-          var overlays = document.querySelectorAll(
-            '.player-control-overlay, .player-controls-background, .player-controls-middle, .player-controls-bottom, .player-controls-top'
-          );
-          for (var i = 0; i < overlays.length; i++) {
-            var el = overlays[i];
-            el.classList.remove('fade-in');
-            el.classList.add('fade-out');
-            el.style.removeProperty('opacity');
-            el.style.removeProperty('pointer-events');
           }
         } catch(e) {}
       }
@@ -578,7 +488,7 @@ export function getFullscreenInterceptorScript(): string {
           if (!isLandscapeFS) return;
           var v = document.querySelector('video');
           if (v && !v.paused) {
-            hideControls();
+            hideDesktopControls();
           }
         }, 3500);
       }
@@ -596,7 +506,7 @@ export function getFullscreenInterceptorScript(): string {
         }
 
         notifyReactNative(true);
-        wakeUpControls();
+        wakeUpDesktopControls();
       }
 
       function exitCompleteFullscreen(video) {
@@ -610,21 +520,13 @@ export function getFullscreenInterceptorScript(): string {
         var moviePlayer = document.querySelector('#movie_player') || document.querySelector('.html5-video-player');
         if (moviePlayer) {
           moviePlayer.classList.remove('ytp-fullscreen');
-        }
-
-        var overlays = document.querySelectorAll(
-          '.player-control-overlay, .player-controls-background, .player-controls-middle, .player-controls-bottom, .player-controls-top'
-        );
-        for (var i = 0; i < overlays.length; i++) {
-          var el = overlays[i];
-          el.classList.remove('fade-in');
-          el.style.removeProperty('opacity');
-          el.style.removeProperty('pointer-events');
+          moviePlayer.classList.remove('ytp-autohide');
+          moviePlayer.classList.remove('ytp-user-active');
         }
 
         notifyReactNative(false);
 
-        // Multi-stage resize dispatch so YouTube smoothly refits to portrait
+        // Multi-stage resize dispatch so YouTube reflows cleanly to portrait
         window.dispatchEvent(new Event('resize'));
         setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
         setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 300);
@@ -744,10 +646,9 @@ export function getFullscreenInterceptorScript(): string {
 
         // 2. Interactive control clicked (play, pause, gear, scrubber, menu, popup)
         var interactive = target.closest(
-          'button, .icon-button, input, [role="button"], [role="slider"], ' +
-          '.ytp-settings-menu, .ytp-popup, ytm-menu-popup-renderer, ' +
-          '.player-control-play-pause-icon, .ytp-button, ' +
-          '.player-controls-progress-bar, .progress-bar-line, ytm-progress-bar, .ytp-progress-bar'
+          'button, .ytp-button, input, [role="button"], [role="slider"], ' +
+          '.ytp-settings-menu, .ytp-popup, .ytp-panel-menu, ' +
+          '.ytp-progress-bar-container, .ytp-progress-bar, .ytp-scrubber-container'
         );
         if (interactive) {
           scheduleControlsAutoHide();
@@ -755,18 +656,17 @@ export function getFullscreenInterceptorScript(): string {
         }
 
         // 3. Tapping blank video area -> toggle controls
-        var inPlayer = target.closest(
-          '#player-container-id, .player-container, #movie_player, .player-control-overlay, .player-controls-background'
-        );
+        var inPlayer = target.closest('#movie_player, .player-container, #player-container-id');
         if (inPlayer) {
-          var overlay = document.querySelector('.player-control-overlay') || document.querySelector('.player-controls-background');
-          var isCurrentlyHidden = overlay && (overlay.classList.contains('fade-out') || overlay.style.opacity === '0');
-          if (isCurrentlyHidden) {
-            wakeUpControls();
-          } else {
-            var v = document.querySelector('video');
-            if (v && !v.paused) {
-              hideControls();
+          var mp = document.querySelector('#movie_player') || document.querySelector('.html5-video-player');
+          if (mp) {
+            if (mp.classList.contains('ytp-autohide')) {
+              wakeUpDesktopControls();
+            } else {
+              var v = document.querySelector('video');
+              if (v && !v.paused) {
+                hideDesktopControls();
+              }
             }
           }
         }
