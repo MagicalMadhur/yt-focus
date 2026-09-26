@@ -165,7 +165,7 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
           // Media
           allowsInlineMediaPlayback={true}
           mediaPlaybackRequiresUserAction={false}
-          allowsFullscreenVideo={true}
+          allowsFullscreenVideo={false}
           allowsPictureInPictureMediaPlayback={pipEnabled}
           // Navigation
           allowsBackForwardNavigationGestures={true}

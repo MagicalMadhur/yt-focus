@@ -1,8 +1,9 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { View, StyleSheet, BackHandler, Platform, AppState, AppStateStatus } from 'react-native';
+import { View, StyleSheet, BackHandler, Platform, AppState, AppStateStatus, StatusBar } from 'react-native';
 import { WebViewNavigation } from 'react-native-webview';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { YouTubeWebView, YouTubeWebViewRef } from '../components/YouTubeWebView';
 import { ErrorView } from '../components/ErrorView';
 import { OfflineView } from '../components/OfflineView';
@@ -22,6 +23,7 @@ export function HomeScreen() {
   const [hasError, setHasError] = useState(false);
   const [initialUrl, setInitialUrl] = useState<string>(YOUTUBE_HOME);
   const [isReady, setIsReady] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Determine initial URL based on settings
   useEffect(() => {
@@ -85,12 +87,25 @@ export function HomeScreen() {
     return () => subscription.remove();
   }, [settings.pipYouTube]);
 
-  // Handle back button (Android/hardware)
+  // Handle back button & restore portrait on blur
   useFocusEffect(
     useCallback(() => {
-      if (Platform.OS !== 'android') return;
-
       const onBackPress = () => {
+        // If in fullscreen, exit fullscreen first
+        if (isFullscreen) {
+          webViewRef.current?.injectJavaScript(`
+            (function() {
+              if (window.__exitZenTubeFullscreen) {
+                window.__exitZenTubeFullscreen();
+              } else if (document.exitFullscreen) {
+                document.exitFullscreen();
+              }
+            })();
+            true;
+          `);
+          return true;
+        }
+
         if (webViewRef.current?.canGoBack) {
           webViewRef.current.goBack();
           return true;
@@ -98,9 +113,17 @@ export function HomeScreen() {
         return false;
       };
 
-      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => subscription.remove();
-    }, [])
+      const subscription = Platform.OS === 'android'
+        ? BackHandler.addEventListener('hardwareBackPress', onBackPress)
+        : null;
+
+      return () => {
+        subscription?.remove();
+        // Restore portrait orientation and status bar when leaving YouTube screen
+        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        StatusBar.setHidden(false);
+      };
+    }, [isFullscreen])
   );
 
   // Track navigation for "remember last page"
@@ -118,8 +141,6 @@ export function HomeScreen() {
     webViewRef.current?.reload();
   }, []);
 
-
-
   // Show offline view
   if (isConnected === false) {
     return <OfflineView onRetry={handleRetry} />;
@@ -135,13 +156,22 @@ export function HomeScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background, paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: theme.colors.background,
+          paddingTop: isFullscreen ? 0 : insets.top,
+        },
+      ]}
+    >
       <YouTubeWebView
         ref={webViewRef}
         url={initialUrl}
         hideShorts={settings.hideShorts}
         contentFilter={settings.contentFilter}
         pipEnabled={settings.pipYouTube}
+        onFullscreenChange={setIsFullscreen}
         onNavigationStateChange={handleNavigationStateChange}
         onError={() => setHasError(true)}
       />
