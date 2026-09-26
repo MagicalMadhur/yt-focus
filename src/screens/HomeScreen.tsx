@@ -168,6 +168,7 @@ export function HomeScreen() {
         hideShorts={settings.hideShorts}
         contentFilter={settings.contentFilter}
         pipEnabled={settings.pipYouTube}
+        isFullscreen={isFullscreen}
         onFullscreenChange={setIsFullscreen}
         onNavigationStateChange={handleNavigationStateChange}
         onError={() => setHasError(true)}

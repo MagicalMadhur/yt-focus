@@ -58,6 +58,7 @@ interface YouTubeWebViewProps {
   hideShorts: boolean;
   contentFilter: boolean;
   pipEnabled?: boolean;
+  isFullscreen?: boolean;
   onNavigationStateChange?: (navState: WebViewNavigation) => void;
   onError?: () => void;
   onLoadEnd?: () => void;
@@ -66,7 +67,7 @@ interface YouTubeWebViewProps {
 
 // ─── Component ──────────────────────────────────────────────────
 export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>(
-  function YouTubeWebView({ url, hideShorts, contentFilter, pipEnabled = true, onNavigationStateChange, onError, onLoadEnd, onFullscreenChange }, ref) {
+  function YouTubeWebView({ url, hideShorts, contentFilter, pipEnabled = true, isFullscreen = false, onNavigationStateChange, onError, onLoadEnd, onFullscreenChange }, ref) {
     const webViewRef = useRef<WebView>(null);
     const canGoBackRef = useRef(false);
     const { theme } = useTheme();
@@ -91,9 +92,19 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
     const handleNavigationStateChange = useCallback(
       (navState: WebViewNavigation) => {
         canGoBackRef.current = navState.canGoBack;
+        // If navigation occurred while in fullscreen (e.g. user went back or navigated away from watch page)
+        if (isFullscreen && !navState.url?.includes('/watch')) {
+          onFullscreenChange?.(false);
+          ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).then(() => {
+            setTimeout(() => {
+              ScreenOrientation.unlockAsync();
+            }, 400);
+          });
+          StatusBar.setHidden(false);
+        }
         onNavigationStateChange?.(navState);
       },
-      [onNavigationStateChange]
+      [isFullscreen, onNavigationStateChange, onFullscreenChange]
     );
 
       // External link handler + ad domain blocking
@@ -172,7 +183,7 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
           allowsFullscreenVideo={false}
           allowsPictureInPictureMediaPlayback={pipEnabled}
           // Navigation
-          allowsBackForwardNavigationGestures={true}
+          allowsBackForwardNavigationGestures={!isFullscreen}
           onNavigationStateChange={handleNavigationStateChange}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
           onMessage={handleMessage}

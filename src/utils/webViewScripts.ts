@@ -233,6 +233,7 @@ export function getFullscreenInterceptorScript(): string {
 
       var isLandscapeFS = false;
       var lastToggleTime = 0;
+      var autoHideTimer = null;
       var FS_STYLE_ID = '__zentube_complete_fs_style';
 
       // ── 1. Inject Complete Fullscreen CSS ──
@@ -248,6 +249,9 @@ export function getFullscreenInterceptorScript(): string {
           '  margin: 0 !important;',
           '  padding: 0 !important;',
           '  background: #000 !important;',
+          '  position: fixed !important;',
+          '  top: 0 !important;',
+          '  left: 0 !important;',
           '}',
           'html.__yt_zen_fullscreen #header-bar,',
           'html.__yt_zen_fullscreen ytm-header-bar,',
@@ -259,7 +263,9 @@ export function getFullscreenInterceptorScript(): string {
           'html.__yt_zen_fullscreen ytm-single-column-watch-next-results-renderer,',
           'html.__yt_zen_fullscreen ytm-item-section-renderer,',
           'html.__yt_zen_fullscreen ytm-compact-video-renderer,',
-          'html.__yt_zen_fullscreen .related-items-container {',
+          'html.__yt_zen_fullscreen .related-items-container,',
+          'html.__yt_zen_fullscreen #related,',
+          'html.__yt_zen_fullscreen #comments {',
           '  display: none !important;',
           '}',
           'html.__yt_zen_fullscreen ytm-app,',
@@ -275,11 +281,10 @@ export function getFullscreenInterceptorScript(): string {
           '  width: 100vw !important;',
           '  height: 100vh !important;',
           '}',
-          'html.__yt_zen_fullscreen #player,',
           'html.__yt_zen_fullscreen #player-container-id,',
+          'html.__yt_zen_fullscreen ytm-watch #player-container-id,',
           'html.__yt_zen_fullscreen .player-container,',
-          'html.__yt_zen_fullscreen #movie_player,',
-          'html.__yt_zen_fullscreen .player-wrapper {',
+          'html.__yt_zen_fullscreen ytm-watch .player-container {',
           '  position: fixed !important;',
           '  top: 0 !important;',
           '  left: 0 !important;',
@@ -287,11 +292,39 @@ export function getFullscreenInterceptorScript(): string {
           '  height: 100vh !important;',
           '  max-width: 100vw !important;',
           '  max-height: 100vh !important;',
+          '  min-width: 100vw !important;',
+          '  min-height: 100vh !important;',
           '  z-index: 999999999 !important;',
           '  background: #000 !important;',
           '  border-radius: 0 !important;',
           '  margin: 0 !important;',
           '  padding: 0 !important;',
+          '  padding-bottom: 0 !important;',
+          '  padding-top: 0 !important;',
+          '  box-sizing: border-box !important;',
+          '  overflow: hidden !important;',
+          '}',
+          'html.__yt_zen_fullscreen #player,',
+          'html.__yt_zen_fullscreen #movie_player,',
+          'html.__yt_zen_fullscreen .html5-video-player,',
+          'html.__yt_zen_fullscreen .player-wrapper,',
+          'html.__yt_zen_fullscreen .html5-video-container {',
+          '  position: absolute !important;',
+          '  top: 0 !important;',
+          '  left: 0 !important;',
+          '  width: 100% !important;',
+          '  height: 100% !important;',
+          '  max-width: 100% !important;',
+          '  max-height: 100% !important;',
+          '  min-width: 100% !important;',
+          '  min-height: 100% !important;',
+          '  background: transparent !important;',
+          '  border-radius: 0 !important;',
+          '  margin: 0 !important;',
+          '  padding: 0 !important;',
+          '  padding-bottom: 0 !important;',
+          '  box-sizing: border-box !important;',
+          '  z-index: 1 !important;',
           '}',
           'html.__yt_zen_fullscreen video,',
           'html.__yt_zen_fullscreen .html5-main-video {',
@@ -304,22 +337,93 @@ export function getFullscreenInterceptorScript(): string {
           '  max-height: 100% !important;',
           '  object-fit: contain !important;',
           '  background: #000 !important;',
+          '  z-index: 1 !important;',
+          '  pointer-events: none !important;',
           '}',
-          'html.__yt_zen_fullscreen .html5-video-container {',
-          '  width: 100% !important;',
-          '  height: 100% !important;',
+          'html.__yt_zen_fullscreen .player-controls-background,',
+          'html.__yt_zen_fullscreen .player-control-overlay,',
+          'html.__yt_zen_fullscreen .ytp-touch-overlay,',
+          'html.__yt_zen_fullscreen ytm-custom-control,',
+          'html.__yt_zen_fullscreen .ytm-custom-control {',
+          '  position: absolute !important;',
           '  top: 0 !important;',
           '  left: 0 !important;',
+          '  width: 100% !important;',
+          '  height: 100% !important;',
+          '  z-index: 10 !important;',
+          '  pointer-events: auto !important;',
+          '  box-sizing: border-box !important;',
+          '}',
+          'html.__yt_zen_fullscreen .player-controls-top {',
+          '  position: absolute !important;',
+          '  top: 0 !important;',
+          '  left: 0 !important;',
+          '  width: 100% !important;',
+          '  z-index: 15 !important;',
+          '  pointer-events: auto !important;',
+          '  padding-top: env(safe-area-inset-top, 8px) !important;',
+          '  padding-left: env(safe-area-inset-left, 16px) !important;',
+          '  padding-right: env(safe-area-inset-right, 16px) !important;',
+          '}',
+          'html.__yt_zen_fullscreen .player-controls-middle {',
+          '  position: absolute !important;',
+          '  top: 50% !important;',
+          '  left: 50% !important;',
+          '  transform: translate(-50%, -50%) !important;',
+          '  z-index: 15 !important;',
+          '  pointer-events: auto !important;',
+          '  display: flex !important;',
+          '  align-items: center !important;',
+          '  justify-content: center !important;',
+          '}',
+          'html.__yt_zen_fullscreen .player-controls-bottom {',
+          '  position: absolute !important;',
+          '  bottom: 0 !important;',
+          '  left: 0 !important;',
+          '  width: 100% !important;',
+          '  z-index: 15 !important;',
+          '  pointer-events: auto !important;',
+          '  padding-bottom: env(safe-area-inset-bottom, 12px) !important;',
+          '  padding-left: env(safe-area-inset-left, 16px) !important;',
+          '  padding-right: env(safe-area-inset-right, 16px) !important;',
+          '  box-sizing: border-box !important;',
+          '}',
+          'html.__yt_zen_fullscreen .player-control-play-pause-icon,',
+          'html.__yt_zen_fullscreen .icon-button,',
+          'html.__yt_zen_fullscreen .ytp-button,',
+          'html.__yt_zen_fullscreen .fullscreen-icon,',
+          'html.__yt_zen_fullscreen .ytm-fullscreen-button,',
+          'html.__yt_zen_fullscreen button {',
+          '  pointer-events: auto !important;',
+          '  cursor: pointer !important;',
           '}',
           'html.__yt_zen_fullscreen .ytp-chrome-bottom {',
           '  width: 100% !important;',
           '  left: 0 !important;',
           '  bottom: 0 !important;',
           '  box-sizing: border-box !important;',
-          '  z-index: 999999999 !important;',
+          '  z-index: 25 !important;',
+          '  pointer-events: auto !important;',
+          '  padding-bottom: env(safe-area-inset-bottom, 12px) !important;',
+          '  padding-left: env(safe-area-inset-left, 16px) !important;',
+          '  padding-right: env(safe-area-inset-right, 16px) !important;',
           '}',
           'html.__yt_zen_fullscreen .ytp-chrome-top {',
-          '  z-index: 999999999 !important;',
+          '  width: 100% !important;',
+          '  left: 0 !important;',
+          '  top: 0 !important;',
+          '  z-index: 25 !important;',
+          '  pointer-events: auto !important;',
+          '  padding-top: env(safe-area-inset-top, 8px) !important;',
+          '  padding-left: env(safe-area-inset-left, 16px) !important;',
+          '  padding-right: env(safe-area-inset-right, 16px) !important;',
+          '}',
+          'html.__yt_zen_fullscreen .ytp-gradient-bottom,',
+          'html.__yt_zen_fullscreen .ytp-gradient-top {',
+          '  z-index: 5 !important;',
+          '}',
+          'html.__yt_zen_fullscreen .ytp-bezel {',
+          '  z-index: 30 !important;',
           '}',
           'html.__yt_zen_fullscreen .ytp-settings-menu,',
           'html.__yt_zen_fullscreen .ytp-popup,',
@@ -327,7 +431,8 @@ export function getFullscreenInterceptorScript(): string {
           'html.__yt_zen_fullscreen tp-yt-iron-dropdown,',
           'html.__yt_zen_fullscreen .ytp-panel-menu,',
           'html.__yt_zen_fullscreen .ytp-caption-window-container {',
-          '  z-index: 1000000000 !important;',
+          '  z-index: 50 !important;',
+          '  pointer-events: auto !important;',
           '}'
         ].join('\\n');
         (document.head || document.documentElement).appendChild(style);
@@ -344,6 +449,61 @@ export function getFullscreenInterceptorScript(): string {
         }
       }
 
+      function wakeUpControls() {
+        try {
+          var mp = document.querySelector('#movie_player') || document.querySelector('.html5-video-player');
+          if (mp) {
+            mp.classList.remove('ytp-autohide');
+            mp.classList.add('ytp-user-active');
+            if (typeof mp.wakeUpControls === 'function') mp.wakeUpControls();
+          }
+
+          var overlays = document.querySelectorAll(
+            '.player-control-overlay, .player-controls-background, .player-controls-middle, .player-controls-bottom, .player-controls-top'
+          );
+          for (var i = 0; i < overlays.length; i++) {
+            var el = overlays[i];
+            el.classList.remove('fade-out');
+            el.classList.add('fade-in');
+            el.style.setProperty('opacity', '1', 'important');
+            el.style.setProperty('pointer-events', 'auto', 'important');
+          }
+          scheduleControlsAutoHide();
+        } catch(e) {}
+      }
+
+      function hideControls() {
+        try {
+          var mp = document.querySelector('#movie_player') || document.querySelector('.html5-video-player');
+          if (mp) {
+            mp.classList.add('ytp-autohide');
+            mp.classList.remove('ytp-user-active');
+          }
+
+          var overlays = document.querySelectorAll(
+            '.player-control-overlay, .player-controls-background, .player-controls-middle, .player-controls-bottom, .player-controls-top'
+          );
+          for (var i = 0; i < overlays.length; i++) {
+            var el = overlays[i];
+            el.classList.remove('fade-in');
+            el.classList.add('fade-out');
+            el.style.removeProperty('opacity');
+            el.style.removeProperty('pointer-events');
+          }
+        } catch(e) {}
+      }
+
+      function scheduleControlsAutoHide() {
+        if (autoHideTimer) clearTimeout(autoHideTimer);
+        autoHideTimer = setTimeout(function() {
+          if (!isLandscapeFS) return;
+          var v = document.querySelector('video');
+          if (v && !v.paused) {
+            hideControls();
+          }
+        }, 3500);
+      }
+
       function enterCompleteFullscreen(video) {
         injectCompleteFSCSS();
         isLandscapeFS = true;
@@ -356,6 +516,7 @@ export function getFullscreenInterceptorScript(): string {
         }
 
         notifyReactNative(true);
+        wakeUpControls();
 
         try {
           if (video) video.dispatchEvent(new Event('webkitbeginfullscreen', { bubbles: true }));
@@ -364,12 +525,23 @@ export function getFullscreenInterceptorScript(): string {
 
       function exitCompleteFullscreen(video) {
         isLandscapeFS = false;
+        if (autoHideTimer) clearTimeout(autoHideTimer);
         document.documentElement.classList.remove('__yt_zen_fullscreen');
         document.body.classList.remove('__yt_zen_fullscreen');
 
         var moviePlayer = document.querySelector('#movie_player') || document.querySelector('.html5-video-player');
         if (moviePlayer) {
           moviePlayer.classList.remove('ytp-fullscreen');
+        }
+
+        var overlays = document.querySelectorAll(
+          '.player-control-overlay, .player-controls-background, .player-controls-middle, .player-controls-bottom, .player-controls-top'
+        );
+        for (var i = 0; i < overlays.length; i++) {
+          var el = overlays[i];
+          el.classList.remove('fade-in');
+          el.style.removeProperty('opacity');
+          el.style.removeProperty('pointer-events');
         }
 
         notifyReactNative(false);
@@ -380,6 +552,7 @@ export function getFullscreenInterceptorScript(): string {
         } catch(e) {}
       }
 
+      // Native API mocks & overrides
       try {
         Object.defineProperty(HTMLVideoElement.prototype, 'webkitDisplayingFullscreen', {
           configurable: true,
@@ -393,7 +566,33 @@ export function getFullscreenInterceptorScript(): string {
             return true;
           }
         });
+        Object.defineProperty(document, 'fullscreenElement', {
+          configurable: true,
+          get: function() {
+            return isLandscapeFS ? (document.querySelector('#movie_player') || document.querySelector('video')) : null;
+          }
+        });
+        Object.defineProperty(document, 'webkitFullscreenElement', {
+          configurable: true,
+          get: function() {
+            return isLandscapeFS ? (document.querySelector('#movie_player') || document.querySelector('video')) : null;
+          }
+        });
+        Object.defineProperty(document, 'webkitIsFullScreen', {
+          configurable: true,
+          get: function() {
+            return isLandscapeFS;
+          }
+        });
       } catch(e) {}
+
+      document.exitFullscreen = function() {
+        exitCompleteFullscreen();
+        return Promise.resolve();
+      };
+      document.webkitExitFullscreen = function() {
+        exitCompleteFullscreen();
+      };
 
       // Intercept iOS WebKit native video fullscreen trigger
       HTMLVideoElement.prototype.webkitEnterFullscreen = function() {
@@ -415,6 +614,108 @@ export function getFullscreenInterceptorScript(): string {
 
         exitCompleteFullscreen(this);
       };
+
+      // ── Click / Tap interception for Controls & Resize / Shrink button ──
+      document.addEventListener('click', function(e) {
+        if (!isLandscapeFS) return;
+        var target = e.target;
+        if (!target) return;
+
+        // 1. Fullscreen / Shrink / Collapse button clicked -> Exit fullscreen!
+        var fsBtn = target.closest(
+          '.ytp-fullscreen-button, ' +
+          'button.fullscreen-icon, ' +
+          'button[aria-label*="Exit full screen" i], ' +
+          'button[aria-label*="Exit fullscreen" i], ' +
+          'button[aria-label*="Full screen" i], ' +
+          'button[aria-label*="Fullscreen" i], ' +
+          'button[aria-label*="Collapse" i], ' +
+          'button.player-control-fullscreen, ' +
+          '.ytm-fullscreen-button, ' +
+          '.ytp-collapse-button'
+        );
+        if (fsBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          exitCompleteFullscreen();
+          return;
+        }
+
+        // 2. Interactive control clicked (play, pause, gear, scrubber, menu, popup)
+        var interactive = target.closest(
+          'button, .icon-button, input, [role="button"], [role="slider"], ' +
+          '.ytp-settings-menu, .ytp-popup, ytm-menu-popup-renderer, ' +
+          '.player-control-play-pause-icon, .ytp-button'
+        );
+        if (interactive) {
+          scheduleControlsAutoHide();
+          return;
+        }
+
+        // 3. Tapping blank video area -> toggle controls
+        var inPlayer = target.closest(
+          '#player-container-id, .player-container, #movie_player, .player-control-overlay, .player-controls-background'
+        );
+        if (inPlayer) {
+          var overlay = document.querySelector('.player-control-overlay') || document.querySelector('.player-controls-background');
+          var isCurrentlyHidden = overlay && (overlay.classList.contains('fade-out') || overlay.style.opacity === '0');
+          if (isCurrentlyHidden) {
+            wakeUpControls();
+          } else {
+            var v = document.querySelector('video');
+            if (v && !v.paused) {
+              hideControls();
+            }
+          }
+        }
+      }, true);
+
+      // ── Swipe-down gesture to dismiss/exit fullscreen ──
+      var touchStartY = 0;
+      var touchStartX = 0;
+      var touchStartTime = 0;
+
+      window.addEventListener('touchstart', function(e) {
+        if (!isLandscapeFS || !e.touches || e.touches.length !== 1) return;
+        touchStartY = e.touches[0].clientY;
+        touchStartX = e.touches[0].clientX;
+        touchStartTime = Date.now();
+      }, { passive: true });
+
+      window.addEventListener('touchend', function(e) {
+        if (!isLandscapeFS || !e.changedTouches || e.changedTouches.length !== 1) return;
+        var deltaY = e.changedTouches[0].clientY - touchStartY;
+        var deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
+        var deltaTime = Date.now() - touchStartTime;
+
+        // Swiped down (> 70px) mostly vertical (deltaY > deltaX * 1.3) within 600ms
+        if (deltaY > 70 && deltaY > deltaX * 1.3 && deltaTime < 600) {
+          exitCompleteFullscreen();
+        }
+      }, { passive: true });
+
+      // ── Handle SPA / browser navigation / popstate to prevent blank screens ──
+      window.addEventListener('popstate', function() {
+        if (isLandscapeFS) {
+          exitCompleteFullscreen();
+        }
+      });
+
+      window.addEventListener('hashchange', function() {
+        if (isLandscapeFS) {
+          exitCompleteFullscreen();
+        }
+      });
+
+      var lastCheckUrl = location.href;
+      setInterval(function() {
+        if (location.href !== lastCheckUrl) {
+          lastCheckUrl = location.href;
+          if (isLandscapeFS && location.pathname.indexOf('/watch') === -1) {
+            exitCompleteFullscreen();
+          }
+        }
+      }, 250);
 
       // Expose helper globally
       window.__exitZenTubeFullscreen = function() {
