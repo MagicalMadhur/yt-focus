@@ -146,11 +146,13 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
             ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
             StatusBar.setHidden(true);
           } else {
-            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).then(() => {
-              setTimeout(() => {
-                ScreenOrientation.unlockAsync();
-              }, 400);
-            });
+            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
+              .then(() => {
+                setTimeout(() => {
+                  ScreenOrientation.unlockAsync().catch(() => {});
+                }, 1200);
+              })
+              .catch(() => {});
             StatusBar.setHidden(false);
           }
           onFullscreenChange?.(isFS);
@@ -183,7 +185,7 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
           allowsFullscreenVideo={false}
           allowsPictureInPictureMediaPlayback={pipEnabled}
           // Navigation
-          allowsBackForwardNavigationGestures={!isFullscreen}
+          allowsBackForwardNavigationGestures={true}
           onNavigationStateChange={handleNavigationStateChange}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
           onMessage={handleMessage}

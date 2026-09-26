@@ -268,6 +268,30 @@ export function getFullscreenInterceptorScript(): string {
           'html.__yt_zen_fullscreen #comments {',
           '  display: none !important;',
           '}',
+          // Completely hide overlapping action buttons and recommendation panels in fullscreen
+          'html.__yt_zen_fullscreen button[aria-label*="Share" i],',
+          'html.__yt_zen_fullscreen button[aria-label*="Save" i],',
+          'html.__yt_zen_fullscreen button[aria-label*="Remix" i],',
+          'html.__yt_zen_fullscreen button[aria-label*="Dislike" i],',
+          'html.__yt_zen_fullscreen button[aria-label*="Like" i],',
+          'html.__yt_zen_fullscreen button[aria-label*="More videos" i],',
+          'html.__yt_zen_fullscreen .ytm-more-videos-button,',
+          'html.__yt_zen_fullscreen .more-videos-button,',
+          'html.__yt_zen_fullscreen .ytp-pause-overlay,',
+          'html.__yt_zen_fullscreen .ytp-expand-pause-overlay,',
+          'html.__yt_zen_fullscreen .ytp-suggestion-set,',
+          'html.__yt_zen_fullscreen .fullscreen-engagement-overlay,',
+          'html.__yt_zen_fullscreen ytm-fullscreen-engagement-overlay,',
+          'html.__yt_zen_fullscreen ytm-engagement-panel-section-list-renderer,',
+          'html.__yt_zen_fullscreen .engagement-panel-container,',
+          'html.__yt_zen_fullscreen .slim-video-action-bar-actions,',
+          'html.__yt_zen_fullscreen ytm-slim-video-action-bar-renderer,',
+          'html.__yt_zen_fullscreen .ytp-suggested-action-badge,',
+          'html.__yt_zen_fullscreen .ytp-cards-teaser,',
+          'html.__yt_zen_fullscreen .ytp-ce-element,',
+          'html.__yt_zen_fullscreen .ytp-endscreen-content {',
+          '  display: none !important;',
+          '}',
           'html.__yt_zen_fullscreen ytm-app,',
           'html.__yt_zen_fullscreen #app,',
           'html.__yt_zen_fullscreen ytm-watch {',
@@ -362,8 +386,8 @@ export function getFullscreenInterceptorScript(): string {
           '  z-index: 15 !important;',
           '  pointer-events: auto !important;',
           '  padding-top: env(safe-area-inset-top, 8px) !important;',
-          '  padding-left: env(safe-area-inset-left, 16px) !important;',
-          '  padding-right: env(safe-area-inset-right, 16px) !important;',
+          '  padding-left: env(safe-area-inset-left, 24px) !important;',
+          '  padding-right: env(safe-area-inset-right, 24px) !important;',
           '}',
           'html.__yt_zen_fullscreen .player-controls-middle {',
           '  position: absolute !important;',
@@ -376,17 +400,72 @@ export function getFullscreenInterceptorScript(): string {
           '  align-items: center !important;',
           '  justify-content: center !important;',
           '}',
+          // Bottom controls container: column flex with progress bar on top, controls on bottom
           'html.__yt_zen_fullscreen .player-controls-bottom {',
           '  position: absolute !important;',
           '  bottom: 0 !important;',
           '  left: 0 !important;',
           '  width: 100% !important;',
-          '  z-index: 15 !important;',
+          '  display: flex !important;',
+          '  flex-direction: column !important;',
+          '  justify-content: flex-end !important;',
+          '  z-index: 20 !important;',
           '  pointer-events: auto !important;',
           '  padding-bottom: env(safe-area-inset-bottom, 12px) !important;',
-          '  padding-left: env(safe-area-inset-left, 16px) !important;',
-          '  padding-right: env(safe-area-inset-right, 16px) !important;',
+          '  padding-left: env(safe-area-inset-left, 24px) !important;',
+          '  padding-right: env(safe-area-inset-right, 24px) !important;',
           '  box-sizing: border-box !important;',
+          '}',
+          'html.__yt_zen_fullscreen .player-controls-bottom-bar {',
+          '  display: flex !important;',
+          '  align-items: center !important;',
+          '  justify-content: space-between !important;',
+          '  width: 100% !important;',
+          '  height: 38px !important;',
+          '  pointer-events: auto !important;',
+          '  margin-top: 4px !important;',
+          '}',
+          'html.__yt_zen_fullscreen .player-controls-bottom-bar-left {',
+          '  display: flex !important;',
+          '  align-items: center !important;',
+          '  justify-content: flex-start !important;',
+          '}',
+          'html.__yt_zen_fullscreen .player-controls-bottom-bar-right {',
+          '  display: flex !important;',
+          '  align-items: center !important;',
+          '  justify-content: flex-end !important;',
+          '  gap: 16px !important;',
+          '}',
+          'html.__yt_zen_fullscreen .time-display,',
+          'html.__yt_zen_fullscreen .ytp-time-display {',
+          '  display: inline-block !important;',
+          '  pointer-events: auto !important;',
+          '  font-size: 13px !important;',
+          '  color: #fff !important;',
+          '}',
+          // Full-width, completely unobstructed progress bar
+          'html.__yt_zen_fullscreen .player-controls-progress-bar,',
+          'html.__yt_zen_fullscreen .progress-bar-line,',
+          'html.__yt_zen_fullscreen ytm-progress-bar,',
+          'html.__yt_zen_fullscreen .ytp-progress-bar-container,',
+          'html.__yt_zen_fullscreen .ytp-progress-bar {',
+          '  width: 100% !important;',
+          '  height: 22px !important;',
+          '  min-height: 22px !important;',
+          '  display: flex !important;',
+          '  align-items: center !important;',
+          '  pointer-events: auto !important;',
+          '  cursor: pointer !important;',
+          '  z-index: 30 !important;',
+          '  touch-action: none !important;',
+          '}',
+          'html.__yt_zen_fullscreen .ytp-scrubber-container,',
+          'html.__yt_zen_fullscreen .ytp-scrubber-button,',
+          'html.__yt_zen_fullscreen .scrubber-button,',
+          'html.__yt_zen_fullscreen .progress-bar-playhead {',
+          '  pointer-events: auto !important;',
+          '  cursor: pointer !important;',
+          '  z-index: 35 !important;',
           '}',
           'html.__yt_zen_fullscreen .player-control-play-pause-icon,',
           'html.__yt_zen_fullscreen .icon-button,',
@@ -405,8 +484,8 @@ export function getFullscreenInterceptorScript(): string {
           '  z-index: 25 !important;',
           '  pointer-events: auto !important;',
           '  padding-bottom: env(safe-area-inset-bottom, 12px) !important;',
-          '  padding-left: env(safe-area-inset-left, 16px) !important;',
-          '  padding-right: env(safe-area-inset-right, 16px) !important;',
+          '  padding-left: env(safe-area-inset-left, 24px) !important;',
+          '  padding-right: env(safe-area-inset-right, 24px) !important;',
           '}',
           'html.__yt_zen_fullscreen .ytp-chrome-top {',
           '  width: 100% !important;',
@@ -415,8 +494,8 @@ export function getFullscreenInterceptorScript(): string {
           '  z-index: 25 !important;',
           '  pointer-events: auto !important;',
           '  padding-top: env(safe-area-inset-top, 8px) !important;',
-          '  padding-left: env(safe-area-inset-left, 16px) !important;',
-          '  padding-right: env(safe-area-inset-right, 16px) !important;',
+          '  padding-left: env(safe-area-inset-left, 24px) !important;',
+          '  padding-right: env(safe-area-inset-right, 24px) !important;',
           '}',
           'html.__yt_zen_fullscreen .ytp-gradient-bottom,',
           'html.__yt_zen_fullscreen .ytp-gradient-top {',
@@ -505,6 +584,7 @@ export function getFullscreenInterceptorScript(): string {
       }
 
       function enterCompleteFullscreen(video) {
+        lastToggleTime = Date.now();
         injectCompleteFSCSS();
         isLandscapeFS = true;
         document.documentElement.classList.add('__yt_zen_fullscreen');
@@ -517,15 +597,13 @@ export function getFullscreenInterceptorScript(): string {
 
         notifyReactNative(true);
         wakeUpControls();
-
-        try {
-          if (video) video.dispatchEvent(new Event('webkitbeginfullscreen', { bubbles: true }));
-        } catch(e) {}
       }
 
       function exitCompleteFullscreen(video) {
+        lastToggleTime = Date.now();
         isLandscapeFS = false;
         if (autoHideTimer) clearTimeout(autoHideTimer);
+
         document.documentElement.classList.remove('__yt_zen_fullscreen');
         document.body.classList.remove('__yt_zen_fullscreen');
 
@@ -546,10 +624,24 @@ export function getFullscreenInterceptorScript(): string {
 
         notifyReactNative(false);
 
-        try {
-          var v = video || document.querySelector('video');
-          if (v) v.dispatchEvent(new Event('webkitendfullscreen', { bubbles: true }));
-        } catch(e) {}
+        // Multi-stage resize dispatch so YouTube smoothly refits to portrait
+        window.dispatchEvent(new Event('resize'));
+        setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 100);
+        setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 300);
+        setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 600);
+        setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 1000);
+
+        // Ensure video is visible and playing if not paused by user
+        setTimeout(function() {
+          var v = document.querySelector('video');
+          if (v) {
+            v.style.removeProperty('display');
+            v.style.removeProperty('visibility');
+            if (v.paused && !v.userHitPause) {
+              try { v.play(); } catch(e) {}
+            }
+          }
+        }, 200);
       }
 
       // Native API mocks & overrides
@@ -597,7 +689,7 @@ export function getFullscreenInterceptorScript(): string {
       // Intercept iOS WebKit native video fullscreen trigger
       HTMLVideoElement.prototype.webkitEnterFullscreen = function() {
         var now = Date.now();
-        if (now - lastToggleTime < 800) return;
+        if (now - lastToggleTime < 1000) return;
         lastToggleTime = now;
 
         if (isLandscapeFS) {
@@ -609,7 +701,7 @@ export function getFullscreenInterceptorScript(): string {
 
       HTMLVideoElement.prototype.webkitExitFullscreen = function() {
         var now = Date.now();
-        if (now - lastToggleTime < 800) return;
+        if (now - lastToggleTime < 1000) return;
         lastToggleTime = now;
 
         exitCompleteFullscreen(this);
@@ -617,11 +709,10 @@ export function getFullscreenInterceptorScript(): string {
 
       // ── Click / Tap interception for Controls & Resize / Shrink button ──
       document.addEventListener('click', function(e) {
-        if (!isLandscapeFS) return;
         var target = e.target;
         if (!target) return;
 
-        // 1. Fullscreen / Shrink / Collapse button clicked -> Exit fullscreen!
+        // 1. Fullscreen / Shrink / Collapse button clicked -> Toggle fullscreen cleanly
         var fsBtn = target.closest(
           '.ytp-fullscreen-button, ' +
           'button.fullscreen-icon, ' +
@@ -637,15 +728,26 @@ export function getFullscreenInterceptorScript(): string {
         if (fsBtn) {
           e.preventDefault();
           e.stopPropagation();
-          exitCompleteFullscreen();
+          var now = Date.now();
+          if (now - lastToggleTime < 1000) return;
+          lastToggleTime = now;
+
+          if (isLandscapeFS) {
+            exitCompleteFullscreen();
+          } else {
+            enterCompleteFullscreen();
+          }
           return;
         }
+
+        if (!isLandscapeFS) return;
 
         // 2. Interactive control clicked (play, pause, gear, scrubber, menu, popup)
         var interactive = target.closest(
           'button, .icon-button, input, [role="button"], [role="slider"], ' +
           '.ytp-settings-menu, .ytp-popup, ytm-menu-popup-renderer, ' +
-          '.player-control-play-pause-icon, .ytp-button'
+          '.player-control-play-pause-icon, .ytp-button, ' +
+          '.player-controls-progress-bar, .progress-bar-line, ytm-progress-bar, .ytp-progress-bar'
         );
         if (interactive) {
           scheduleControlsAutoHide();
