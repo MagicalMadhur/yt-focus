@@ -196,6 +196,7 @@ export function getFullscreenInterceptorScript(): string {
       window.__zenTubeFSInstalled = true;
 
       var isLandscapeFS = false;
+      var lastToggleTime = 0;
 
       function notifyReactNative(isFS) {
         if (window.ReactNativeWebView) {
@@ -206,40 +207,68 @@ export function getFullscreenInterceptorScript(): string {
         }
       }
 
+      try {
+        Object.defineProperty(HTMLVideoElement.prototype, 'webkitDisplayingFullscreen', {
+          configurable: true,
+          get: function() {
+            return isLandscapeFS;
+          }
+        });
+        Object.defineProperty(HTMLVideoElement.prototype, 'webkitSupportsFullscreen', {
+          configurable: true,
+          get: function() {
+            return true;
+          }
+        });
+      } catch(e) {}
+
       // Intercept iOS WebKit native video fullscreen trigger
       HTMLVideoElement.prototype.webkitEnterFullscreen = function() {
+        var now = Date.now();
+        if (now - lastToggleTime < 800) return;
+        lastToggleTime = now;
+
+        var v = this;
         var isCurrentlyLandscape = window.innerWidth > window.innerHeight;
+
         // If already in landscape, tapping fullscreen exits to portrait
         if (isLandscapeFS || isCurrentlyLandscape) {
           isLandscapeFS = false;
           notifyReactNative(false);
+          try {
+            v.dispatchEvent(new Event('webkitendfullscreen', { bubbles: true }));
+          } catch(e) {}
         } else {
           isLandscapeFS = true;
           notifyReactNative(true);
+          try {
+            v.dispatchEvent(new Event('webkitbeginfullscreen', { bubbles: true }));
+          } catch(e) {}
         }
       };
 
       HTMLVideoElement.prototype.webkitExitFullscreen = function() {
+        var now = Date.now();
+        if (now - lastToggleTime < 800) return;
+        lastToggleTime = now;
+
         isLandscapeFS = false;
         notifyReactNative(false);
+        try {
+          this.dispatchEvent(new Event('webkitendfullscreen', { bubbles: true }));
+        } catch(e) {}
       };
-
-      // Keep orientation state in sync with device rotation
-      function checkOrientation() {
-        var isLandscape = window.innerWidth > window.innerHeight;
-        if (!isLandscape && isLandscapeFS) {
-          isLandscapeFS = false;
-          notifyReactNative(false);
-        }
-      }
-
-      window.addEventListener('resize', checkOrientation, false);
-      window.addEventListener('orientationchange', checkOrientation, false);
 
       // Expose helper globally
       window.__exitZenTubeFullscreen = function() {
         isLandscapeFS = false;
         notifyReactNative(false);
+        var videos = document.querySelectorAll('video');
+        for (var i = 0; i < videos.length; i++) {
+          try {
+            videos[i].dispatchEvent(new Event('webkitendfullscreen', { bubbles: true }));
+          } catch(e) {}
+        }
       };
     })();
     true;

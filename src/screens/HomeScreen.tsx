@@ -24,6 +24,8 @@ export function HomeScreen() {
   const [initialUrl, setInitialUrl] = useState<string>(YOUTUBE_HOME);
   const [isReady, setIsReady] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const isFullscreenRef = useRef(false);
+  isFullscreenRef.current = isFullscreen;
 
   // Determine initial URL based on settings
   useEffect(() => {
@@ -85,13 +87,11 @@ export function HomeScreen() {
     useCallback(() => {
       const onBackPress = () => {
         // If in fullscreen, exit fullscreen first
-        if (isFullscreen) {
+        if (isFullscreenRef.current) {
           webViewRef.current?.injectJavaScript(`
             (function() {
               if (window.__exitZenTubeFullscreen) {
                 window.__exitZenTubeFullscreen();
-              } else if (document.exitFullscreen) {
-                document.exitFullscreen();
               }
             })();
             true;
@@ -112,11 +112,15 @@ export function HomeScreen() {
 
       return () => {
         subscription?.remove();
-        // Restore portrait orientation and status bar when leaving YouTube screen
-        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+        // Restore portrait orientation and status bar ONLY when navigating away from YouTube screen
+        ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).then(() => {
+          setTimeout(() => {
+            ScreenOrientation.unlockAsync();
+          }, 300);
+        });
         StatusBar.setHidden(false);
       };
-    }, [isFullscreen])
+    }, [])
   );
 
   // Track navigation for "remember last page"
