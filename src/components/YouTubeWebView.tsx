@@ -135,7 +135,11 @@ export const YouTubeWebView = forwardRef<YouTubeWebViewRef, YouTubeWebViewProps>
             ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
             StatusBar.setHidden(true);
           } else {
-            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+            ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).then(() => {
+              setTimeout(() => {
+                ScreenOrientation.unlockAsync();
+              }, 400);
+            });
             StatusBar.setHidden(false);
           }
           onFullscreenChange?.(isFS);

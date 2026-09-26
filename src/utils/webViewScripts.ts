@@ -177,13 +177,16 @@ export function getEnhancementScript(): string {
 }
 
 // ─── In-Page YouTube Fullscreen Engine ────────────────────────
+// ─── Fullscreen Interceptor ────────────────────────────────────
 /**
- * Enables in-page YouTube fullscreen without triggering iOS WebKit's native AVPlayer:
- * 1. Neuters HTMLVideoElement.prototype.webkitEnterFullscreen so the iOS native player never takes over.
- * 2. Polyfills standard Fullscreen API (requestFullscreen, exitFullscreen, fullscreenElement, fullscreenEnabled)
- *    so YouTube's player stays inside the webview and uses YouTube's own player UI (gear icon, speed, quality, captions).
- * 3. Applies edge-to-edge in-page styling to #movie_player and the video element in fullscreen mode.
- * 4. Communicates with React Native to rotate to landscape and hide the status bar.
+ * Intercepts YouTube mobile web fullscreen requests to force landscape orientation
+ * without launching iOS WebKit's native AVPlayer overlay:
+ * 1. Overrides HTMLVideoElement.prototype.webkitEnterFullscreen so the iOS native AVPlayer
+ *    never takes over.
+ * 2. Toggles device orientation to LANDSCAPE via React Native messaging on fullscreen button click.
+ * 3. Restores portrait and unlocks orientation on exit so iOS auto-rotate works normally.
+ * 4. Leaves YouTube's DOM and touch event hierarchy completely untampered so all mobile controls,
+ *    play/pause taps, and settings menu work natively.
  */
 export function getFullscreenInterceptorScript(): string {
   return `
@@ -192,94 +195,7 @@ export function getFullscreenInterceptorScript(): string {
       if (window.__zenTubeFSInstalled) return;
       window.__zenTubeFSInstalled = true;
 
-      var _fsElement = null;
-      var FS_STYLE_ID = '__zentube_inpage_fs_style';
-
-      // ── 1. Inject In-Page Fullscreen CSS ──
-      function injectFSCSS() {
-        if (document.getElementById(FS_STYLE_ID)) return;
-        var style = document.createElement('style');
-        style.id = FS_STYLE_ID;
-        style.textContent = [
-          'html.__yt_inpage_fullscreen, body.__yt_inpage_fullscreen {',
-          '  overflow: hidden !important;',
-          '  width: 100vw !important;',
-          '  height: 100vh !important;',
-          '  margin: 0 !important;',
-          '  padding: 0 !important;',
-          '  background: #000 !important;',
-          '  position: fixed !important;',
-          '  top: 0 !important;',
-          '  left: 0 !important;',
-          '  z-index: 2147483640 !important;',
-          '}',
-          'html.__yt_inpage_fullscreen ytm-app,',
-          'html.__yt_inpage_fullscreen #app,',
-          'html.__yt_inpage_fullscreen ytm-watch {',
-          '  transform: none !important;',
-          '  perspective: none !important;',
-          '  filter: none !important;',
-          '  overflow: visible !important;',
-          '}',
-          'html.__yt_inpage_fullscreen #header-bar,',
-          'html.__yt_inpage_fullscreen ytm-header-bar,',
-          'html.__yt_inpage_fullscreen ytm-mobile-topbar-renderer,',
-          'html.__yt_inpage_fullscreen ytm-pivot-bar-renderer,',
-          'html.__yt_inpage_fullscreen .pivot-bar,',
-          'html.__yt_inpage_fullscreen .watch-below-the-player,',
-          'html.__yt_inpage_fullscreen #below,',
-          'html.__yt_inpage_fullscreen ytm-item-section-renderer,',
-          'html.__yt_inpage_fullscreen ytm-compact-video-renderer,',
-          'html.__yt_inpage_fullscreen ytm-single-column-watch-next-results-renderer {',
-          '  display: none !important;',
-          '}',
-          'html.__yt_inpage_fullscreen #player,',
-          'html.__yt_inpage_fullscreen #player-container-id,',
-          'html.__yt_inpage_fullscreen .player-container,',
-          'html.__yt_inpage_fullscreen #movie_player,',
-          'html.__yt_inpage_fullscreen .player-wrapper {',
-          '  position: fixed !important;',
-          '  top: 0 !important;',
-          '  left: 0 !important;',
-          '  width: 100vw !important;',
-          '  height: 100vh !important;',
-          '  max-width: 100vw !important;',
-          '  max-height: 100vh !important;',
-          '  z-index: 2147483647 !important;',
-          '  background: #000 !important;',
-          '  border-radius: 0 !important;',
-          '}',
-          'html.__yt_inpage_fullscreen video,',
-          'html.__yt_inpage_fullscreen .html5-main-video {',
-          '  position: absolute !important;',
-          '  top: 0 !important;',
-          '  left: 0 !important;',
-          '  width: 100vw !important;',
-          '  height: 100vh !important;',
-          '  max-width: 100vw !important;',
-          '  max-height: 100vh !important;',
-          '  object-fit: contain !important;',
-          '}',
-          'html.__yt_inpage_fullscreen .html5-video-container {',
-          '  width: 100vw !important;',
-          '  height: 100vh !important;',
-          '  top: 0 !important;',
-          '  left: 0 !important;',
-          '}',
-          'html.__yt_inpage_fullscreen .ytp-chrome-bottom,',
-          'html.__yt_inpage_fullscreen .ytp-chrome-top,',
-          'html.__yt_inpage_fullscreen .ytp-settings-menu,',
-          'html.__yt_inpage_fullscreen .ytp-popup,',
-          'html.__yt_inpage_fullscreen .ytp-caption-window-container,',
-          'html.__yt_inpage_fullscreen ytm-menu-popup-renderer,',
-          'html.__yt_inpage_fullscreen tp-yt-iron-dropdown {',
-          '  z-index: 2147483647 !important;',
-          '}'
-        ].join('\\n');
-        (document.head || document.documentElement).appendChild(style);
-      }
-
-      injectFSCSS();
+      var isLandscapeFS = false;
 
       function notifyReactNative(isFS) {
         if (window.ReactNativeWebView) {
@@ -290,123 +206,41 @@ export function getFullscreenInterceptorScript(): string {
         }
       }
 
-      function enterInPageFullscreen(target) {
-        injectFSCSS();
-        _fsElement = target || document.querySelector('#movie_player') || document.querySelector('video') || document.body;
-        document.documentElement.classList.add('__yt_inpage_fullscreen');
-        document.body.classList.add('__yt_inpage_fullscreen');
-
-        var moviePlayer = document.querySelector('#movie_player') || document.querySelector('.html5-video-player');
-        if (moviePlayer) {
-          moviePlayer.classList.add('ytp-fullscreen');
-        }
-
-        notifyReactNative(true);
-
-        try {
-          document.dispatchEvent(new Event('fullscreenchange', { bubbles: true }));
-          document.dispatchEvent(new Event('webkitfullscreenchange', { bubbles: true }));
-        } catch(e) {}
-
-        return Promise.resolve();
-      }
-
-      function exitInPageFullscreen() {
-        _fsElement = null;
-        document.documentElement.classList.remove('__yt_inpage_fullscreen');
-        document.body.classList.remove('__yt_inpage_fullscreen');
-
-        var moviePlayer = document.querySelector('#movie_player') || document.querySelector('.html5-video-player');
-        if (moviePlayer) {
-          moviePlayer.classList.remove('ytp-fullscreen');
-        }
-
-        notifyReactNative(false);
-
-        try {
-          document.dispatchEvent(new Event('fullscreenchange', { bubbles: true }));
-          document.dispatchEvent(new Event('webkitfullscreenchange', { bubbles: true }));
-        } catch(e) {}
-
-        return Promise.resolve();
-      }
-
-      // ── 2. Fullscreen API Polyfills for YouTube Web Player ──
-      Element.prototype.requestFullscreen = function() {
-        return enterInPageFullscreen(this);
-      };
-      Element.prototype.webkitRequestFullscreen = function() {
-        return enterInPageFullscreen(this);
-      };
-      Document.prototype.exitFullscreen = function() {
-        return exitInPageFullscreen();
-      };
-      Document.prototype.webkitExitFullscreen = function() {
-        return exitInPageFullscreen();
-      };
-
-      try {
-        Object.defineProperty(Document.prototype, 'fullscreenElement', {
-          get: function() { return _fsElement; },
-          configurable: true
-        });
-        Object.defineProperty(Document.prototype, 'webkitFullscreenElement', {
-          get: function() { return _fsElement; },
-          configurable: true
-        });
-        Object.defineProperty(Document.prototype, 'fullscreenEnabled', {
-          get: function() { return true; },
-          configurable: true
-        });
-        Object.defineProperty(Document.prototype, 'webkitFullscreenEnabled', {
-          get: function() { return true; },
-          configurable: true
-        });
-      } catch(e) {}
-
-      // ── 3. Neuter WebKit Native Fullscreen on Videos (prevents iOS AVPlayer) ──
+      // Intercept iOS WebKit native video fullscreen trigger
       HTMLVideoElement.prototype.webkitEnterFullscreen = function() {
-        if (_fsElement) {
-          exitInPageFullscreen();
+        var isCurrentlyLandscape = window.innerWidth > window.innerHeight;
+        // If already in landscape, tapping fullscreen exits to portrait
+        if (isLandscapeFS || isCurrentlyLandscape) {
+          isLandscapeFS = false;
+          notifyReactNative(false);
         } else {
-          var player = this.closest('#movie_player') || 
-                       this.closest('#player') || 
-                       this.closest('#player-container-id') || 
-                       this.closest('.player-container') || 
-                       this.closest('.player-wrapper') ||
-                       this;
-          enterInPageFullscreen(player);
+          isLandscapeFS = true;
+          notifyReactNative(true);
         }
       };
+
       HTMLVideoElement.prototype.webkitExitFullscreen = function() {
-        exitInPageFullscreen();
+        isLandscapeFS = false;
+        notifyReactNative(false);
       };
 
-      // ── 4. Fallback Click Interceptor on Fullscreen Toggle Buttons ──
-      document.addEventListener('click', function(e) {
-        var fsBtn = e.target && e.target.closest && (
-          e.target.closest('.ytp-fullscreen-button') ||
-          e.target.closest('button[aria-label*="full screen" i]') ||
-          e.target.closest('button[aria-label*="fullscreen" i]') ||
-          e.target.closest('button[data-title-no-tooltip*="full screen" i]')
-        );
-
-        if (fsBtn) {
-          // Allow YouTube internal handler a moment to trigger polyfilled requestFullscreen
-          setTimeout(function() {
-            // If still not entered or exited, toggle manually
-            if (!_fsElement) {
-              var player = fsBtn.closest('#movie_player') || document.querySelector('#movie_player') || document.querySelector('video');
-              enterInPageFullscreen(player);
-            }
-          }, 60);
+      // Keep orientation state in sync with device rotation
+      function checkOrientation() {
+        var isLandscape = window.innerWidth > window.innerHeight;
+        if (!isLandscape && isLandscapeFS) {
+          isLandscapeFS = false;
+          notifyReactNative(false);
         }
-      }, true);
+      }
 
-      // Expose helpers globally
-      window.__enterZenTubeFullscreen = enterInPageFullscreen;
-      window.__exitZenTubeFullscreen = exitInPageFullscreen;
-      window.__isZenTubeFullscreen = function() { return !!_fsElement; };
+      window.addEventListener('resize', checkOrientation, false);
+      window.addEventListener('orientationchange', checkOrientation, false);
+
+      // Expose helper globally
+      window.__exitZenTubeFullscreen = function() {
+        isLandscapeFS = false;
+        notifyReactNative(false);
+      };
     })();
     true;
   `;

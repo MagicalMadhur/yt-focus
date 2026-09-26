@@ -72,23 +72,17 @@ export function HotstarScreen() {
           `);
         }
       } else if (nextAppState === 'active' && (prevState === 'background' || prevState === 'inactive')) {
-        // Returning to foreground → re-sync WebView to prevent freeze/hang
+        // Returning to foreground → ensure video presentation mode is inline
         webViewRef.current?.injectJavaScript(`
           (function() {
             try {
-              // Exit PiP if still active
               var videos = document.querySelectorAll('video');
               for (var i = 0; i < videos.length; i++) {
                 var v = videos[i];
                 if (v && typeof v.webkitSetPresentationMode === 'function') {
                   try { v.webkitSetPresentationMode('inline'); } catch(e) {}
                 }
-                v.style.pointerEvents = 'auto';
               }
-              // Force a layout reflow to unfreeze the page
-              document.body.style.display = 'none';
-              void document.body.offsetHeight;
-              document.body.style.display = '';
             } catch(e) {}
           })();
           true;
