@@ -116,6 +116,7 @@ export function SonyLivScreen() {
           backgroundColor: theme.colors.background,
           paddingLeft: insets.left,
           paddingRight: insets.right,
+          paddingBottom: insets.bottom,
         },
       ]}
     >

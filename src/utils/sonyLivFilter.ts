@@ -429,10 +429,12 @@ export function getSonyLivAdScript(pipEnabled: boolean = true): string {
 
 
         // ════════════════════════════════════════════════════
-        // LAYER 4: TARGETED CSS SUPPRESSION
+        // LAYER 4: TARGETED CSS SUPPRESSION & MODAL ALIGNMENT
         // ════════════════════════════════════════════════════
         // Target ONLY the exact Ad Blocker Detected screen from chunk 5771 (.ad_block_wrapper_all).
         // NEVER use broad [class*="adblock"] which matches the bait div!
+        // Also fix modal dialog alignment in landscape so confirmation popups
+        // (like "Logout Confirmation", "Active Devices") are never cut off.
         try {
           var baitStyle = document.createElement('style');
           baitStyle.id = '__zen_sonyliv_detector_defuse';
@@ -450,6 +452,133 @@ export function getSonyLivAdScript(pipEnabled: boolean = true): string {
             '/* Hide app download banners and promotions */',
             '.app-download-banner, .app-banner, [class*="app-banner" i], [class*="download-app" i], [class*="open-in-app" i] {',
             '  display: none !important;',
+            '}',
+            '/* ── Responsive Popup & Modal Alignment Fix (Landscape & Portrait) ── */',
+            '.popup-wrapper, .revampDMPopup-wrapper, [id*="Popup" i], [class*="popup-wrapper" i], [class*="modal-overlay" i] {',
+            '  display: flex !important;',
+            '  align-items: center !important;',
+            '  justify-content: center !important;',
+            '  position: fixed !important;',
+            '  top: 0 !important;',
+            '  left: 0 !important;',
+            '  right: 0 !important;',
+            '  bottom: 0 !important;',
+            '  width: 100vw !important;',
+            '  height: 100vh !important;',
+            '  height: 100dvh !important;',
+            '  overflow-y: auto !important;',
+            '  -webkit-overflow-scrolling: touch !important;',
+            '  z-index: 999999 !important;',
+            '  padding: 10px !important;',
+            '  box-sizing: border-box !important;',
+            '  background-color: rgba(0, 0, 0, 0.78) !important;',
+            '}',
+            '.popup-device-mgmt-content-wrapper, .popup-content-wrapper,',
+            '.popup-wrapper .popup-device-mgmt-content-wrapper, .revampDMPopup-wrapper .popup-device-mgmt-content-wrapper,',
+            '[class*="popup-device-mgmt-content-wrapper" i], [class*="popup-content-wrapper" i] {',
+            '  position: relative !important;',
+            '  top: auto !important;',
+            '  bottom: auto !important;',
+            '  left: auto !important;',
+            '  right: auto !important;',
+            '  transform: none !important;',
+            '  margin: auto !important;',
+            '  width: 92% !important;',
+            '  max-width: 440px !important;',
+            '  max-height: 88vh !important;',
+            '  max-height: 88dvh !important;',
+            '  overflow-y: auto !important;',
+            '  -webkit-overflow-scrolling: touch !important;',
+            '  padding: 20px 24px 22px 24px !important;',
+            '  border-radius: 14px !important;',
+            '  box-sizing: border-box !important;',
+            '  background-color: #172331 !important;',
+            '  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.85) !important;',
+            '}',
+            '.popup-wrapper .popup-device-mgmt-content-wrapper .popup-content .header_row_flex {',
+            '  display: flex !important;',
+            '  justify-content: center !important;',
+            '  position: relative !important;',
+            '  margin-bottom: 6px !important;',
+            '}',
+            '.popup-wrapper .popup-device-mgmt-content-wrapper .popup-content .header_row_flex .popup-device-mgmt-body,',
+            '.popup-device-mgmt-body {',
+            '  font-size: 20px !important;',
+            '  font-weight: 600 !important;',
+            '  line-height: 1.3 !important;',
+            '  text-align: center !important;',
+            '  color: #fff !important;',
+            '  padding: 0 !important;',
+            '  margin: 0 !important;',
+            '}',
+            '.popup-wrapper .popup-device-mgmt-content-wrapper .popup-content .header_row_flex .close-button {',
+            '  display: flex !important;',
+            '  align-items: center !important;',
+            '  justify-content: center !important;',
+            '  position: absolute !important;',
+            '  right: -8px !important;',
+            '  top: -8px !important;',
+            '  width: 28px !important;',
+            '  height: 28px !important;',
+            '  cursor: pointer !important;',
+            '}',
+            '.popup-wrapper .popup-device-mgmt-content-wrapper .popup-content .header_row_flex .close-button .popup-closebtn {',
+            '  width: 22px !important;',
+            '  height: 22px !important;',
+            '}',
+            '.popup-wrapper .popup-device-mgmt-content-wrapper .popup-content .popup-body_device_mgmt_sub_content {',
+            '  font-size: 14px !important;',
+            '  line-height: 1.45 !important;',
+            '  color: #acacac !important;',
+            '  margin-top: 6px !important;',
+            '  margin-bottom: 18px !important;',
+            '  padding: 0 !important;',
+            '  max-width: 100% !important;',
+            '  text-align: center !important;',
+            '}',
+            '.popup-wrapper .popup-device-mgmt-content-wrapper .popup-content .popup-body_device_mgmt_sub_content .highlight {',
+            '  color: #fff !important;',
+            '  font-weight: 600 !important;',
+            '}',
+            '.popup-device-mgmt-footer-pad:empty, .popup-device-mgmt-body:empty, .pop_desktop_img:empty {',
+            '  display: none !important;',
+            '}',
+            '.popup-wrapper .popup-device-mgmt-content-wrapper .popup-content .popup-device-mgmt-footer {',
+            '  display: flex !important;',
+            '  flex-direction: row !important;',
+            '  justify-content: center !important;',
+            '  align-items: center !important;',
+            '  gap: 12px !important;',
+            '  margin-top: 0 !important;',
+            '}',
+            '.popup-wrapper .popup-device-mgmt-content-wrapper .popup-content .popup-device-mgmt-footer .device_mgmt_popup_yes_button,',
+            '.popup-wrapper .popup-device-mgmt-content-wrapper .popup-content .popup-device-mgmt-footer .device_mgmt_popup_no_button,',
+            '.popup-wrapper .submit_Button, .popup-wrapper .cancel_Button {',
+            '  height: 38px !important;',
+            '  min-height: 38px !important;',
+            '  max-height: 38px !important;',
+            '  padding: 8px 18px !important;',
+            '  border-radius: 8px !important;',
+            '  font-size: 13px !important;',
+            '  font-weight: 600 !important;',
+            '  margin: 0 !important;',
+            '  display: inline-flex !important;',
+            '  align-items: center !important;',
+            '  justify-content: center !important;',
+            '  min-width: 95px !important;',
+            '  cursor: pointer !important;',
+            '}',
+            '.popup-wrapper .popup-device-mgmt-content-wrapper .popup-content .popup-device-mgmt-footer .device_mgmt_popup_yes_button,',
+            '.popup-wrapper .submit_Button {',
+            '  background-color: #fff !important;',
+            '  color: #07070a !important;',
+            '  border: none !important;',
+            '}',
+            '.popup-wrapper .popup-device-mgmt-content-wrapper .popup-content .popup-device-mgmt-footer .device_mgmt_popup_no_button,',
+            '.popup-wrapper .cancel_Button {',
+            '  background-color: rgba(255, 255, 255, 0.12) !important;',
+            '  color: #fff !important;',
+            '  border: 1px solid rgba(255, 255, 255, 0.3) !important;',
             '}'
           ].join('\\n');
           (document.head || document.documentElement).appendChild(baitStyle);
@@ -533,7 +662,24 @@ export function getSonyLivAdScript(pipEnabled: boolean = true): string {
               try { adBlockWall.parentNode.removeChild(adBlockWall); } catch(e) {}
             }
 
-            // 3. Detect if player is showing an ad
+            // 3. Normalize popup modal placement if opened (fixes cut-off in landscape)
+            var popups = document.querySelectorAll('.popup-wrapper, .revampDMPopup-wrapper, #DeviceMangementPopup');
+            for (var p = 0; p < popups.length; p++) {
+              var pop = popups[p];
+              if (pop && pop.offsetParent !== null) {
+                var content = pop.querySelector('.popup-device-mgmt-content-wrapper, .popup-content-wrapper');
+                if (content && content.style && (content.style.transform || content.style.top)) {
+                  content.style.position = 'relative';
+                  content.style.top = 'auto';
+                  content.style.left = 'auto';
+                  content.style.bottom = 'auto';
+                  content.style.transform = 'none';
+                  content.style.margin = 'auto';
+                }
+              }
+            }
+
+            // 4. Detect if player is showing an ad
             var adIndicatorSelectors = [
               '.ad-container',
               '.video-ad-container',
