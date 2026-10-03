@@ -197,6 +197,15 @@ export function SettingsScreen() {
               onValueChange={(val) => updateSettings({ pipHotstar: val })}
               theme={theme}
             />
+            <View style={[styles.divider, { backgroundColor: c.surfaceBorder }]} />
+            <SettingRowWithSwitch
+              icon="tv-outline"
+              label="Sony LIV PiP"
+              description="Continue Sony LIV video in mini player when you leave the app"
+              value={settings.pipSonyLiv}
+              onValueChange={(val) => updateSettings({ pipSonyLiv: val })}
+              theme={theme}
+            />
           </View>
         </Section>
 

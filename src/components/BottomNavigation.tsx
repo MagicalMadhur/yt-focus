@@ -7,6 +7,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { SubscriptionsScreen } from '../screens/SubscriptionsScreen';
 import { LibraryScreen } from '../screens/LibraryScreen';
 import { HotstarScreen } from '../screens/HotstarScreen';
+import { SonyLivScreen } from '../screens/SonyLivScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { useTheme, colors } from '../theme/theme';
 
@@ -51,6 +52,13 @@ const TABS: TabConfig[] = [
     icon: 'film-outline',
     iconFocused: 'film',
     label: 'Hotstar',
+  },
+  {
+    name: 'SonyLIV',
+    component: SonyLivScreen,
+    icon: 'tv-outline',
+    iconFocused: 'tv',
+    label: 'Sony LIV',
   },
   {
     name: 'Settings',

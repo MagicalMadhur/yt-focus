@@ -10,6 +10,7 @@ export interface AppSettings {
   autoFullscreen: boolean;
   pipYouTube: boolean;
   pipHotstar: boolean;
+  pipSonyLiv: boolean;
 }
 
 // ─── Defaults ───────────────────────────────────────────────────
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoFullscreen: false,
   pipYouTube: true,
   pipHotstar: true,
+  pipSonyLiv: true,
 };
 
 // ─── Storage Keys ───────────────────────────────────────────────
