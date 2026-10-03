@@ -1,21 +1,25 @@
 /**
  * Content filtering and Anti-Adblock Defusal system for Sony LIV WebView.
  *
- * Implements:
- * 1. Anti-Adblock Bypass: Allows IMA SDK loader to pass integrity check without triggering "Disable adblocker" wall.
- * 2. Bait Element Protection: Spoofs ad bait elements (.pub_300x250, .text-ad, etc.) with non-zero dimensions.
- * 3. JSON Pruning: Strips ad_breaks, ad_pods, ad_cue_points, and interventions from API responses.
- * 4. Google IMA & SPNAdManager Defusal: Wraps AdsManager to trigger instant completion without error.
- * 5. 50ms Active Video Ad Killer & Instant Skip: Detects video ads, mutes them, speeds them up 16x,
- *    seeks to end, and auto-clicks skip buttons.
- * 6. App download banner & nag removal.
+ * Reverse-engineered components:
+ * 1. Webpack Module 61647 Defusal: Sony LIV uses 'just-detect-adblock' (module 61647 in chunk 7693)
+ *    which is invoked by App.jsx as: D().isDetected() ? this.setState({adBlocker: true}) : ...
+ *    We hook window.__LOADABLE_LOADED_CHUNKS__.push to intercept and replace module 61647 with a clean
+ *    mock returning isDetected() => false.
+ * 2. DOM Bait Element Spoofing: Overrides offsetParent, offsetHeight, offsetWidth, offsetLeft, offsetTop,
+ *    clientHeight, clientWidth, and getComputedStyle on bait divs (.pub_300x250, .text-ad, .adSense, .adBlock)
+ *    so any DOM measurement returns non-zero positive values and visible display.
+ * 3. Network Bait Neutralization: Intercepts raw.githubusercontent.com / pagead2.googlesyndication.com
+ *    in XMLHttpRequest to respond with status 200 and 'thistextshouldbethere\n'.
+ * 4. CSS & DOM Suppression: Targets the exact modal container (.ad_block_wrapper_all) from chunk 5771
+ *    without touching the bait div classes.
+ * 5. 50ms Active Video Ad Killer: Mutes video ads, speeds them up 16x, seeks to end, and clicks skip buttons.
+ * 6. Brave-Style Background Playback & PiP.
  */
 
 // ─── Blocked Sony LIV Ad & Tracking Domains ───────────────────────
-// We block 3rd-party ad trackers and programmatic networks, but EXCLUDE imasdk.googleapis.com
-// from network-level blocking so Sony LIV's anti-adblock check does not fail with script.onerror!
+// We block 3rd-party ad trackers, but NEVER block sonyliv.com or imasdk.googleapis.com
 const SONYLIV_BLOCKED_DOMAINS: string[] = [
-  // ── 3rd-party programmatic ad networks & trackers ──
   'pubmatic.com',
   'ads.pubmatic.com',
   'gads.pubmatic.com',
@@ -56,23 +60,17 @@ const SONYLIV_BLOCKED_DOMAINS: string[] = [
   'conviva.com',
   'convivaid.com',
   'app-measurement.com',
-  // Specific Doubleclick tracking pixels (NOT the gampad endpoint required for player init)
   'ad.doubleclick.net',
   'static.doubleclick.net',
   's0.2mdn.net',
 ];
 
 const SONYLIV_BLOCKED_PATTERNS: RegExp[] = [
-  /\/ptracking/i,
-  /\btracking\.js/i,
-  /\/beacon\?/i,
-  /\/collect\?/i,
   /apps\.apple\.com/i,
   /itunes\.apple\.com/i,
   /play\.google\.com/i,
   /\/download\b/i,
   /sonyliv:\/\/./i,
-  /api-godavari\.sonyliv\.com\/beacon/i,
 ];
 
 /**
@@ -93,15 +91,15 @@ export function shouldBlockSonyLivRequest(url: string): boolean {
       return true;
     }
 
-    // 2. CRITICAL EXCEPTION FOR ANTI-ADBLOCK:
-    // Sony LIV strictly tests if imasdk.googleapis.com and spnadmanager load.
-    // If blocked at the network level, script.onerror triggers: "Disable adblocker 1st".
-    // We ALLOW them at the network layer and defuse them in JavaScript!
+    // 2. CRITICAL: NEVER block Sony LIV's own services or critical player endpoints!
     if (
+      hostname === 'sonyliv.com' ||
+      hostname.endsWith('.sonyliv.com') ||
       hostname.includes('imasdk.googleapis.com') ||
       url.includes('spnadmanager.js') ||
       url.includes('ima3_dai.js') ||
       url.includes('ima3.js') ||
+      url.includes('playersdk') ||
       url.includes('/gampad/')
     ) {
       return false;
@@ -198,172 +196,277 @@ export function getSonyLivAdScript(pipEnabled: boolean = true): string {
         window.__zenTubePipEnabled = ${pipEnabled};
 
         // ════════════════════════════════════════════════════
-        // PHASE 1: ANTI-ADBLOCK BAIT PROTECTION & FAKE CHECK PASS
+        // LAYER 1: WEBPACK MODULE 61647 DEFUSAL
         // ════════════════════════════════════════════════════
-        // Sony LIV checks if bait elements (.pub_300x250, .text-ad, etc.)
-        // have 0 height. If an adblocker collapses them, Sony LIV blocks playback!
-        // We force bait elements to report positive dimensions and stay in the DOM.
+        // Sony LIV uses 'just-detect-adblock' (module 61647) inside chunk 7693.
+        // In App.jsx, componentDidMount calls:
+        //   D().isDetected() ? this.setState({adBlocker: true}) : this.setState({adBlocker: false})
+        // When adBlocker is true, React unmounts everything and displays DetectAdBlock (chunk 5771).
+        // By replacing module 61647 in the Webpack chunk registry before execution,
+        // D().isDetected() ALWAYS returns false!
+        try {
+          var cleanAdblockMock = function(module) {
+            module.exports = function() {
+              return {
+                detectAnyAdblocker: function() { return Promise.resolve(false); },
+                detectDomAdblocker: function() { return Promise.resolve(false); },
+                detectBraveShields: function() { return Promise.resolve(false); },
+                detectOperaAdblocker: function() { return Promise.resolve(false); },
+                isDetected: function() { return false; }
+              };
+            };
+          };
+
+          function patchChunkArray(arr) {
+            if (!arr || arr.__zenHooked) return;
+            arr.__zenHooked = true;
+
+            // Check any chunks already in the array
+            for (var c = 0; c < arr.length; c++) {
+              var item = arr[c];
+              if (item && item[1] && typeof item[1] === 'object' && item[1][61647]) {
+                item[1][61647] = cleanAdblockMock;
+              }
+            }
+
+            var origPush = arr.push;
+            arr.push = function() {
+              for (var i = 0; i < arguments.length; i++) {
+                var chunk = arguments[i];
+                if (chunk && chunk[1] && typeof chunk[1] === 'object' && chunk[1][61647]) {
+                  chunk[1][61647] = cleanAdblockMock;
+                }
+              }
+              return origPush.apply(this, arguments);
+            };
+          }
+
+          var initialChunks = window.__LOADABLE_LOADED_CHUNKS__ || [];
+          patchChunkArray(initialChunks);
+          window.__LOADABLE_LOADED_CHUNKS__ = initialChunks;
+
+          var _loadableChunks = initialChunks;
+          try {
+            Object.defineProperty(window, '__LOADABLE_LOADED_CHUNKS__', {
+              get: function() { return _loadableChunks; },
+              set: function(val) {
+                _loadableChunks = val;
+                patchChunkArray(val);
+              },
+              configurable: true
+            });
+          } catch(e) {}
+        } catch(e) {}
+
+
+        // ════════════════════════════════════════════════════
+        // LAYER 2: DOM BAIT ELEMENT MEASUREMENT SPOOFING
+        // ════════════════════════════════════════════════════
+        // 'just-detect-adblock' creates a bait <div> with:
+        // class="pub_300x250 pub_300x250m pub_728x90 text-ad textAd text_ad text_ads text-ads text-ad-links ad-text adSense adBlock adContent adBanner"
+        // and checks:
+        //   null === e.offsetParent || 0 == e.offsetHeight || 0 == e.offsetLeft || 0 == e.offsetTop ||
+        //   0 == e.offsetWidth || 0 == e.clientHeight || 0 == e.clientWidth ||
+        //   getComputedStyle(e).getPropertyValue('display') === 'none' ||
+        //   getComputedStyle(e).getPropertyValue('visibility') === 'hidden'
+        // We ensure every bait check returns healthy non-zero dimensions and visible status!
+
+        function isBaitClass(cls) {
+          if (!cls || typeof cls !== 'string') return false;
+          return /pub_|text-ad|adSense|adBlock|adContent|adBanner/i.test(cls);
+        }
 
         try {
+          var origOffsetHeightDesc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+          if (origOffsetHeightDesc && origOffsetHeightDesc.get) {
+            Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+              get: function() {
+                if (isBaitClass(this.className)) return 1;
+                return origOffsetHeightDesc.get.call(this);
+              },
+              configurable: true
+            });
+          }
+
+          var origOffsetWidthDesc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
+          if (origOffsetWidthDesc && origOffsetWidthDesc.get) {
+            Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+              get: function() {
+                if (isBaitClass(this.className)) return 1;
+                return origOffsetWidthDesc.get.call(this);
+              },
+              configurable: true
+            });
+          }
+
+          var origOffsetLeftDesc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetLeft');
+          if (origOffsetLeftDesc && origOffsetLeftDesc.get) {
+            Object.defineProperty(HTMLElement.prototype, 'offsetLeft', {
+              get: function() {
+                if (isBaitClass(this.className)) return -10000;
+                return origOffsetLeftDesc.get.call(this);
+              },
+              configurable: true
+            });
+          }
+
+          var origOffsetTopDesc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetTop');
+          if (origOffsetTopDesc && origOffsetTopDesc.get) {
+            Object.defineProperty(HTMLElement.prototype, 'offsetTop', {
+              get: function() {
+                if (isBaitClass(this.className)) return -1000;
+                return origOffsetTopDesc.get.call(this);
+              },
+              configurable: true
+            });
+          }
+
+          var origOffsetParentDesc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetParent');
+          if (origOffsetParentDesc && origOffsetParentDesc.get) {
+            Object.defineProperty(HTMLElement.prototype, 'offsetParent', {
+              get: function() {
+                if (isBaitClass(this.className)) return document.body || this.parentElement;
+                return origOffsetParentDesc.get.call(this);
+              },
+              configurable: true
+            });
+          }
+
+          var origClientHeightDesc = Object.getOwnPropertyDescriptor(Element.prototype, 'clientHeight');
+          if (origClientHeightDesc && origClientHeightDesc.get) {
+            Object.defineProperty(Element.prototype, 'clientHeight', {
+              get: function() {
+                if (isBaitClass(this.className)) return 1;
+                return origClientHeightDesc.get.call(this);
+              },
+              configurable: true
+            });
+          }
+
+          var origClientWidthDesc = Object.getOwnPropertyDescriptor(Element.prototype, 'clientWidth');
+          if (origClientWidthDesc && origClientWidthDesc.get) {
+            Object.defineProperty(Element.prototype, 'clientWidth', {
+              get: function() {
+                if (isBaitClass(this.className)) return 1;
+                return origClientWidthDesc.get.call(this);
+              },
+              configurable: true
+            });
+          }
+
+          // Hook window.getComputedStyle
+          if (window.getComputedStyle) {
+            var origGetComputedStyle = window.getComputedStyle;
+            window.getComputedStyle = function(el, pseudo) {
+              var res = origGetComputedStyle.apply(this, arguments);
+              if (el && el.className && isBaitClass(el.className)) {
+                return new Proxy(res, {
+                  get: function(target, prop) {
+                    if (prop === 'display') return 'block';
+                    if (prop === 'visibility') return 'visible';
+                    if (prop === 'getPropertyValue') {
+                      return function(p) {
+                        if (p === 'display') return 'block';
+                        if (p === 'visibility') return 'visible';
+                        return target.getPropertyValue(p);
+                      };
+                    }
+                    var val = target[prop];
+                    if (typeof val === 'function') return val.bind(target);
+                    return val;
+                  }
+                });
+              }
+              return res;
+            };
+          }
+
+          // Body 'abp' attribute check spoof
+          var origGetAttribute = Element.prototype.getAttribute;
+          Element.prototype.getAttribute = function(name) {
+            if (name === 'abp') return null;
+            return origGetAttribute.apply(this, arguments);
+          };
+        } catch(e) {}
+
+
+        // ════════════════════════════════════════════════════
+        // LAYER 3: XHR BAIT INTERCEPTION
+        // ════════════════════════════════════════════════════
+        // 'just-detect-adblock' tests raw.githubusercontent.com/.../baits/pagead2.googlesyndication.com
+        // Expects status 200 with text 'thistextshouldbethere\\n'
+        try {
+          var origOpen = XMLHttpRequest.prototype.open;
+          var origSend = XMLHttpRequest.prototype.send;
+          XMLHttpRequest.prototype.open = function(method, url) {
+            this.__zenUrl = (url || '').toString();
+            return origOpen.apply(this, arguments);
+          };
+          XMLHttpRequest.prototype.send = function() {
+            if (this.__zenUrl && (
+              this.__zenUrl.indexOf('just-detect-adblock') !== -1 ||
+              this.__zenUrl.indexOf('pagead2.googlesyndication.com') !== -1
+            )) {
+              var self = this;
+              setTimeout(function() {
+                try {
+                  Object.defineProperty(self, 'status', { get: function() { return 200; }, configurable: true });
+                  Object.defineProperty(self, 'readyState', { get: function() { return 4; }, configurable: true });
+                  Object.defineProperty(self, 'responseText', { get: function() { return 'thistextshouldbethere\\n'; }, configurable: true });
+                  if (typeof self.onreadystatechange === 'function') {
+                    self.onreadystatechange();
+                  }
+                  if (typeof self.onload === 'function') {
+                    self.onload();
+                  }
+                } catch(e) {}
+              }, 10);
+              return;
+            }
+            return origSend.apply(this, arguments);
+          };
+        } catch(e) {}
+
+
+        // ════════════════════════════════════════════════════
+        // LAYER 4: TARGETED CSS SUPPRESSION
+        // ════════════════════════════════════════════════════
+        // Target ONLY the exact Ad Blocker Detected screen from chunk 5771 (.ad_block_wrapper_all).
+        // NEVER use broad [class*="adblock"] which matches the bait div!
+        try {
           var baitStyle = document.createElement('style');
-          baitStyle.id = '__zen_sonyliv_bait_fix';
+          baitStyle.id = '__zen_sonyliv_detector_defuse';
           baitStyle.textContent = [
-            '.pub_300x250, .pub_300x250m, .pub_728x90, .text-ad, .textAd, .text_ad, .text_ads, .text-ads, .text-ad-links {',
-            '  display: block !important;',
-            '  visibility: visible !important;',
-            '  height: 250px !important;',
-            '  min-height: 1px !important;',
-            '  position: absolute !important;',
-            '  top: -9999px !important;',
-            '  left: -9999px !important;',
-            '}',
-            '/* Hide any adblocker warning modals or dialogs if Sony LIV mounts them */',
-            '[class*="adblock" i], [id*="adblock" i], [class*="ad-blocker" i], .ad-blocker-container, .adblock-overlay {',
+            '/* Defuse the exact ad blocker detection screen */',
+            '.ad_block_wrapper_all {',
             '  display: none !important;',
+            '  visibility: hidden !important;',
+            '  opacity: 0 !important;',
             '  pointer-events: none !important;',
+            '  height: 0 !important;',
+            '  max-height: 0 !important;',
+            '  overflow: hidden !important;',
             '}',
-            '/* Hide app download prompts */',
-            '.app-download-banner, .app-banner, [class*="app-banner" i], [class*="download-app" i], [class*="open-in-app" i], [aria-label*="open in app" i] {',
+            '/* Hide app download banners and promotions */',
+            '.app-download-banner, .app-banner, [class*="app-banner" i], [class*="download-app" i], [class*="open-in-app" i] {',
             '  display: none !important;',
             '}'
           ].join('\\n');
           (document.head || document.documentElement).appendChild(baitStyle);
         } catch(e) {}
 
-        // Hook offsetHeight and clientHeight to guarantee bait tests report > 0
+        // Prevent window.close from terminating the WebView on "No Thanks!"
         try {
-          var origOffsetHeightDesc = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
-          if (origOffsetHeightDesc && origOffsetHeightDesc.get) {
-            Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
-              get: function() {
-                var h = origOffsetHeightDesc.get.call(this);
-                if (h === 0 && this.className && typeof this.className === 'string') {
-                  if (/pub_|text-ad|adsbox|ad-banner/i.test(this.className)) {
-                    return 250;
-                  }
-                }
-                return h;
-              },
-              configurable: true
-            });
-          }
-        } catch(e) {}
-
-        // ════════════════════════════════════════════════════
-        // PHASE 2: JSON-PRUNE AD BREAKS & CUE POINTS
-        // ════════════════════════════════════════════════════
-        // Recursively strip ad_breaks, ad_pods, ad_cue_points, and interventions
-        // from any JSON response so Sony LIV's player receives a clean stream schedule.
-
-        var AD_KEY_NAMES = [
-          'intervention_data', 'interventions', 'ad_breaks', 'adbreaks',
-          'ad_pods', 'adpods', 'ad_tags', 'adtags', 'ad_config', 'adconfig',
-          'ad_info', 'adinfo', 'ad_data', 'addata', 'ad_slot', 'adslot',
-          'ad_manager', 'admanager', 'ad_cue_points', 'adcuepoints',
-          'monetization', 'dai_stream', 'ssai_stream', 'ad_tracking',
-          'adtracking', 'ad_events', 'adevents', 'ad_manifest', 'admanifest'
-        ];
-
-        function pruneAdData(obj, depth) {
-          if (!obj || typeof obj !== 'object' || (depth || 0) > 15) return;
-          if (Array.isArray(obj)) {
-            for (var i = obj.length - 1; i >= 0; i--) {
-              var item = obj[i];
-              if (item && typeof item === 'object') {
-                var wType = (item.widget_type || item.type || item.name || '').toString().toUpperCase();
-                if (wType === 'AD' || wType === 'INTERVENTION' || wType === 'AD_BREAK' || wType === 'AD_POD') {
-                  obj.splice(i, 1);
-                  continue;
-                }
-              }
-              pruneAdData(item, (depth || 0) + 1);
-            }
-            return;
-          }
-
-          for (var key in obj) {
-            if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
-            var lkey = key.toLowerCase();
-            var shouldDelete = false;
-
-            for (var k = 0; k < AD_KEY_NAMES.length; k++) {
-              if (lkey === AD_KEY_NAMES[k] || lkey.indexOf(AD_KEY_NAMES[k]) === 0) {
-                shouldDelete = true;
-                break;
-              }
-            }
-
-            if (!shouldDelete && (
-              /^intervention/i.test(key) ||
-              /^ad_?(break|pod|tag|config|slot|cue|manager|info|event|track|manifest)/i.test(key)
-            )) {
-              shouldDelete = true;
-            }
-
-            if (shouldDelete) {
-              try {
-                delete obj[key];
-              } catch(e) {
-                obj[key] = null;
-              }
-            } else if (obj[key] && typeof obj[key] === 'object') {
-              pruneAdData(obj[key], (depth || 0) + 1);
-            }
-          }
-        }
-
-        // Hook JSON.parse
-        var origJSONParse = JSON.parse;
-        JSON.parse = function(text, reviver) {
-          var result = origJSONParse.apply(this, arguments);
-          if (result && typeof result === 'object') {
-            pruneAdData(result, 0);
-          }
-          return result;
-        };
-
-        // Hook Response.prototype.json
-        if (window.Response && window.Response.prototype && window.Response.prototype.json) {
-          var origResponseJson = window.Response.prototype.json;
-          window.Response.prototype.json = function() {
-            return origResponseJson.apply(this, arguments).then(function(data) {
-              if (data && typeof data === 'object') {
-                pruneAdData(data, 0);
-              }
-              return data;
-            });
-          };
-        }
-
-        // Hook XMLHttpRequest response
-        try {
-          var origXHRResponseDesc = Object.getOwnPropertyDescriptor(XMLHttpRequest.prototype, 'response');
-          if (origXHRResponseDesc && origXHRResponseDesc.get) {
-            Object.defineProperty(XMLHttpRequest.prototype, 'response', {
-              get: function() {
-                var val = origXHRResponseDesc.get.call(this);
-                if (this.responseType === 'json' && val && typeof val === 'object' && !this.__pruned) {
-                  this.__pruned = true;
-                  pruneAdData(val, 0);
-                }
-                return val;
-              },
-              configurable: true
-            });
-          }
+          window.close = function() {};
         } catch(e) {}
 
 
         // ════════════════════════════════════════════════════
-        // PHASE 3: GOOGLE IMA SDK & AD MANAGER DEFUSAL HOOK
+        // LAYER 5: GOOGLE IMA SDK & AD MANAGER DEFUSAL
         // ════════════════════════════════════════════════════
-        // When google.ima loads, hook AdsManager to signal instant ad completion.
-        // This delivers a SUCCESS response to the player (no AdError = no "Disable adblocker" screen!)
-
         function hookGoogleIMA() {
           if (!window.google || !window.google.ima) return;
 
-          // Wrap AdsManager.prototype.start to complete instantly
           if (window.google.ima.AdsManager && window.google.ima.AdsManager.prototype) {
             var proto = window.google.ima.AdsManager.prototype;
             if (!proto.__zenHooked) {
@@ -385,7 +488,6 @@ export function getSonyLivAdScript(pipEnabled: boolean = true): string {
           }
         }
 
-        // Monitor window.google definition
         var _google = window.google;
         try {
           Object.defineProperty(window, 'google', {
@@ -397,23 +499,17 @@ export function getSonyLivAdScript(pipEnabled: boolean = true): string {
             configurable: true
           });
         } catch(e) {}
-
         setInterval(hookGoogleIMA, 250);
 
 
         // ════════════════════════════════════════════════════
-        // PHASE 4: 50MS ACTIVE VIDEO AD KILLER & AUTO-SKIP
+        // LAYER 6: 50MS ACTIVE VIDEO AD KILLER & INSTANT SKIP
         // ════════════════════════════════════════════════════
-        // Ultra-fast active watcher:
-        // 1. Detects video ads (ad containers, badges, timers, countdowns).
-        // 2. Mutes audio, fast-forwards at 16x, seeks to end, and clicks skip buttons.
-        // 3. Immediately restores normal speed and audio for main content!
-
         var isAdSpeedActive = false;
 
         function runAdKiller() {
           try {
-            // Check for skip buttons
+            // 1. Auto-click skip buttons
             var skipSelectors = [
               'button.skip-ad',
               '.video-ad-skip',
@@ -431,7 +527,13 @@ export function getSonyLivAdScript(pipEnabled: boolean = true): string {
               }
             }
 
-            // Check if player is currently showing an ad
+            // 2. Auto-remove .ad_block_wrapper_all if mounted
+            var adBlockWall = document.querySelector('.ad_block_wrapper_all');
+            if (adBlockWall && adBlockWall.parentNode) {
+              try { adBlockWall.parentNode.removeChild(adBlockWall); } catch(e) {}
+            }
+
+            // 3. Detect if player is showing an ad
             var adIndicatorSelectors = [
               '.ad-container',
               '.video-ad-container',
@@ -467,15 +569,12 @@ export function getSonyLivAdScript(pipEnabled: boolean = true): string {
 
               if (isAdPlaying) {
                 isAdSpeedActive = true;
-                // Mute and fast-forward ad
                 vid.muted = true;
                 vid.playbackRate = 16.0;
-                // Seek to end of ad if finite
                 if (vid.duration && !isNaN(vid.duration) && isFinite(vid.duration) && vid.duration > 0) {
                   vid.currentTime = vid.duration - 0.1;
                 }
               } else if (isAdSpeedActive) {
-                // Ad ended -> restore normal playback
                 isAdSpeedActive = false;
                 vid.playbackRate = 1.0;
                 vid.muted = false;
@@ -488,7 +587,7 @@ export function getSonyLivAdScript(pipEnabled: boolean = true): string {
 
 
         // ════════════════════════════════════════════════════
-        // PHASE 5: BRAVE-STYLE BACKGROUND PLAYBACK & PIP
+        // LAYER 7: BRAVE-STYLE BACKGROUND PLAYBACK & PIP
         // ════════════════════════════════════════════════════
         try {
           Object.defineProperty(Document.prototype, 'visibilityState', {
