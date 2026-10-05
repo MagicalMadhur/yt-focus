@@ -591,50 +591,73 @@ export function getSonyLivAdScript(pipEnabled: boolean = true): string {
 
 
         // ════════════════════════════════════════════════════
-        // LAYER 5: GOOGLE IMA SDK & AD MANAGER DEFUSAL
+        // LAYER 5: NATIVE CONFIG AD SUPPRESSION
         // ════════════════════════════════════════════════════
-        function hookGoogleIMA() {
-          if (!window.google || !window.google.ima) return;
-
-          if (window.google.ima.AdsManager && window.google.ima.AdsManager.prototype) {
-            var proto = window.google.ima.AdsManager.prototype;
-            if (!proto.__zenHooked) {
-              proto.__zenHooked = true;
-              var origStart = proto.start;
-              proto.start = function() {
-                var self = this;
-                setTimeout(function() {
-                  try {
-                    self.dispatchEvent({ type: 'allAdsCompleted' });
-                    self.dispatchEvent({ type: 'contentResumeRequested' });
-                  } catch(e) {}
-                }, 0);
-                if (origStart) {
-                  try { origStart.apply(this, arguments); } catch(e) {}
+        // Sony LIV's player checks config.ads_config.isAllAdsDisabled
+        // and stream cuepoints: [].
+        // By setting isAllAdsDisabled: true and cuepoints: [] in the API responses,
+        // Sony LIV natively suppresses all preroll, midroll, and companion ads!
+        function patchSonyLivConfig(data) {
+          if (!data || typeof data !== 'object') return data;
+          try {
+            if (data.resultObj && typeof data.resultObj === 'object') {
+              var ro = data.resultObj;
+              if (ro.config && typeof ro.config === 'object') {
+                if (ro.config.ads_config && typeof ro.config.ads_config === 'object') {
+                  ro.config.ads_config.isAllAdsDisabled = true;
+                  ro.config.ads_config.number_ad_breaks_per_session = 0;
+                  ro.config.ads_config.ad_prefetch_enable = false;
+                  ro.config.ads_config.skip_ads_till_play_position = true;
+                  ro.config.ads_config.preroll_ima_ad_config = null;
                 }
-              };
+                if (ro.config.companion_ads) {
+                  ro.config.companion_ads = false;
+                }
+              }
+              if (Array.isArray(ro.cuepoints)) {
+                ro.cuepoints = [];
+              }
             }
-          }
+          } catch(e) {}
+          return data;
         }
 
-        var _google = window.google;
         try {
-          Object.defineProperty(window, 'google', {
-            get: function() { return _google; },
-            set: function(val) {
-              _google = val;
-              hookGoogleIMA();
-            },
-            configurable: true
-          });
+          var origJSONParse = JSON.parse;
+          JSON.parse = function() {
+            var res = origJSONParse.apply(this, arguments);
+            if (res && typeof res === 'object') {
+              patchSonyLivConfig(res);
+            }
+            return res;
+          };
+
+          if (window.Response && window.Response.prototype && window.Response.prototype.json) {
+            var origResponseJson = window.Response.prototype.json;
+            window.Response.prototype.json = function() {
+              return origResponseJson.apply(this, arguments).then(function(data) {
+                if (data && typeof data === 'object') {
+                  patchSonyLivConfig(data);
+                }
+                return data;
+              });
+            };
+          }
         } catch(e) {}
-        setInterval(hookGoogleIMA, 250);
 
 
         // ════════════════════════════════════════════════════
-        // LAYER 6: 50MS ACTIVE VIDEO AD KILLER & INSTANT SKIP
+        // LAYER 6: SAFE & BULLETPROOF VIDEO AD SKIPPER
         // ════════════════════════════════════════════════════
-        var isAdSpeedActive = false;
+        // 1. Auto-clicks any skip button instantly.
+        // 2. CRITICAL SAFETY GUARD: If vid.duration > 100s, it is MAIN CONTENT (episode/movie).
+        //    NEVER seek, NEVER speed up, NEVER mute the main video!
+        // 3. For short ad videos (duration <= 100s):
+        //    - Sets playbackRate to 16x and mutes.
+        //    - Seeks ONCE to duration - 0.4s only if currentTime < duration - 0.5s.
+        //    - Allows the final 0.4s (takes 25ms at 16x) to play naturally so
+        //      the player's state machine fires the native 'ended' event and
+        //      transitions seamlessly to the main video without being trapped at 30s!
 
         function runAdKiller() {
           try {
@@ -646,8 +669,11 @@ export function getSonyLivAdScript(pipEnabled: boolean = true): string {
               '.skip-button',
               'button[class*="skip" i]',
               'div[class*="skip" i]',
+              'span[class*="skip" i]',
               'button[aria-label*="skip" i]',
-              '.ad-skip'
+              '.ad-skip',
+              '.spn-skip-button',
+              '.vjs-skip-ad'
             ];
             for (var s = 0; s < skipSelectors.length; s++) {
               var btn = document.querySelector(skipSelectors[s]);
@@ -679,57 +705,47 @@ export function getSonyLivAdScript(pipEnabled: boolean = true): string {
               }
             }
 
-            // 4. Detect if player is showing an ad
-            var adIndicatorSelectors = [
-              '.ad-container',
-              '.video-ad-container',
-              '[class*="ad-timer"]',
-              '[class*="ad-countdown"]',
-              '[class*="ad-playing"]',
-              '[class*="ad-badge"]',
-              '.ad-duration',
-              '[class*="advertisement" i]',
-              '.spn-ad-container'
-            ];
-
-            var isAdPlaying = false;
-            for (var a = 0; a < adIndicatorSelectors.length; a++) {
-              var el = document.querySelector(adIndicatorSelectors[a]);
-              if (el && el.offsetParent !== null) {
-                isAdPlaying = true;
-                break;
-              }
-            }
-
+            // 4. Handle Video Playback Safely
             var videos = document.querySelectorAll('video');
             for (var v = 0; v < videos.length; v++) {
               var vid = videos[v];
               if (!vid) continue;
 
-              // Ensure playsinline
+              // Ensure inline playback
               if (!vid.playsInline) {
                 vid.setAttribute('playsinline', 'true');
                 vid.setAttribute('webkit-playsinline', 'true');
                 vid.playsInline = true;
               }
 
-              if (isAdPlaying) {
-                isAdSpeedActive = true;
-                vid.muted = true;
-                vid.playbackRate = 16.0;
-                if (vid.duration && !isNaN(vid.duration) && isFinite(vid.duration) && vid.duration > 0) {
-                  vid.currentTime = vid.duration - 0.1;
+              var dur = vid.duration;
+
+              // ── STRICT SAFETY GUARD ──
+              // If duration is unknown, infinite (live stream), or > 100 seconds:
+              // THIS IS THE MAIN MOVIE / EPISODE!
+              // NEVER SEEK, NEVER SPEED UP, NEVER MUTE!
+              if (!dur || isNaN(dur) || !isFinite(dur) || dur > 100) {
+                if (vid.playbackRate > 1.0) {
+                  vid.playbackRate = 1.0;
                 }
-              } else if (isAdSpeedActive) {
-                isAdSpeedActive = false;
-                vid.playbackRate = 1.0;
-                vid.muted = false;
+                continue;
+              }
+
+              // ── THIS IS AN AD (duration <= 100s) ──
+              vid.muted = true;
+              vid.playbackRate = 16.0;
+
+              // Seek ONCE towards the end if far from completion.
+              // Leave 0.4s buffer so the video player reaches the end naturally
+              // and fires the native 'ended' event to transition to the main video!
+              if (vid.currentTime < dur - 0.5) {
+                vid.currentTime = dur - 0.4;
               }
             }
           } catch(e) {}
         }
 
-        setInterval(runAdKiller, 50);
+        setInterval(runAdKiller, 100);
 
 
         // ════════════════════════════════════════════════════
